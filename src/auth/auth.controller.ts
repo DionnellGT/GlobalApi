@@ -1,0 +1,105 @@
+import { Controller, Get, Post, Patch, Body, UseGuards, Req, Headers, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { IncomingHttpHeaders } from 'http';
+
+import { AuthService } from './auth.service';
+import { RawHeaders, GetUser, Auth } from './decorators';
+import { RoleProtected } from './decorators/role-protected.decorator';
+
+import { CreateUserDto, LoginUserDto } from './dto';
+import { User } from './entities/user.entity';
+import { UserRoleGuard } from './guards/user-role.guard';
+import { ValidRoles } from './interfaces';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { AdminUpdateProfileDto } from './dto/admin-update-profile.dto';
+import { PaginationDto } from 'src/common/dtos/pagination.dto';
+
+@ApiTags('Auth')
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  createUser(@Body() createUserDto: CreateUserDto ) {
+    return this.authService.create( createUserDto );
+  }
+
+  @Post('login')
+  loginUser(@Body() loginUserDto: LoginUserDto ) {
+    return this.authService.login( loginUserDto );
+  }
+
+  @Get('check-status')
+  @Auth()
+  checkAuthStatus(@GetUser() user: User) {
+    return this.authService.checkAuthStatus( user );
+  }
+
+  @Patch('profile')
+  @Auth()
+  @ApiOperation({ summary: 'Update user profile (name, phone, address)' })
+  @ApiResponse({ status: 200, description: 'Profile updated, returns updated user + new token' })
+  updateProfile(
+    @GetUser() user: User,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile( user, updateProfileDto );
+  }
+
+  @Patch('change-password')
+  @Auth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 401, description: 'Current password incorrect' })
+  changePassword(
+    @GetUser() user: User,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword( user, changePasswordDto );
+  }
+
+  @Get('users')
+  @Auth(ValidRoles.admin)
+  @ApiOperation({ summary: 'Get all users (admin only)' })
+  @ApiResponse({ status: 200, description: 'List of all users' })
+  @ApiResponse({ status: 403, description: 'Forbidden. Admin role required.' })
+  getAllUsers(@Query() paginationDto: PaginationDto) {
+    return this.authService.getAllUsers(paginationDto);
+  } 
+
+  @Get('private')
+  @UseGuards( AuthGuard() )
+  testingPrivateRoute(
+    @Req() request: Express.Request,
+    @GetUser() user: User,
+    @GetUser('email') userEmail: string,
+    @RawHeaders() rawHeaders: string[],
+    @Headers() headers: IncomingHttpHeaders,
+  ) {
+    return { ok: true, message: 'Hola Mundo Private', user, userEmail, rawHeaders, headers }
+  }
+
+  @Patch('users/:id')
+  @Auth(ValidRoles.admin)
+  updateUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateProfileDto: AdminUpdateProfileDto,
+  ) {
+    return this.authService.updateUserById(id, updateProfileDto);
+  }
+
+  @Get('private2')
+  @RoleProtected( ValidRoles.superUser, ValidRoles.admin )
+  @UseGuards( AuthGuard(), UserRoleGuard )
+  privateRoute2(@GetUser() user: User) {
+    return { ok: true, user }
+  }
+
+  @Get('private3')
+  @Auth( ValidRoles.admin )
+  privateRoute3(@GetUser() user: User) {
+    return { ok: true, user }
+  }
+}
