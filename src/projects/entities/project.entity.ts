@@ -1,132 +1,110 @@
 import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
-
 import { ProjectImage } from '.';
 import { User } from '../../auth/entities/user.entity';
 
 @Entity({ name: 'Projects' })
 export class Project {
 
-    @ApiProperty({
-        example: 'cd533345-f1f3-48c9-a62e-7dc2da50c8f8',
-        description: 'PROJECT ID',
-        uniqueItems: true
-    })
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+  @ApiProperty({ example: 'uuid', description: 'PROJECT ID', uniqueItems: true })
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @ApiProperty({
-        example: 'T-Shirt Teslo',
-        description: 'PROJECT Title',
-        uniqueItems: true
-    })
-    @Column('text', {
-        unique: true,
-    })
-    title: string;
+  @ApiProperty({ description: 'Slug único del proyecto', uniqueItems: true })
+  @Column('text', { unique: true })
+  idSlug: string;
 
-    @ApiProperty({
-        example: 0,
-        description: 'PROJECT price',
-    })
-    @Column('float',{
-        default: 0
-    })
-    price: number;
+  @ApiProperty({ description: 'Marca o desarrolladora del proyecto' })
+  @Column('text', { nullable: true })
+  marca: string;
 
-    @ApiProperty({
-        example: 'Anim reprehenderit nulla in anim mollit minim irure commodo.',
-        description: 'PROJECT description',
-        default: null,
-    })
-    @Column({
-        type: 'text',
-        nullable: true
-    })
-    description: string;
+  @ApiProperty({ description: 'Nombre del proyecto' })
+  @Column('text', { unique: true })
+  name: string;
 
-    @ApiProperty({
-        example: 't_shirt_teslo',
-        description: 'PROJECT SLUG - for SEO',
-        uniqueItems: true
-    })
-    @Column('text', {
-        unique: true
-    })
-    slug: string;
+  @ApiProperty({ description: 'Imagen para el carrusel principal' })
+  @Column('text', { nullable: true })
+  imageCarrousel: string;
 
-    @ApiProperty({
-        example: 10,
-        description: 'PROJECT stock',
-        default: 0
-    })
-    @Column('int', {
-        default: 0
-    })
-    stock: number;
+  @ApiProperty({ description: 'Imagen del banner principal (desktop)' })
+  @Column('text', { nullable: true })
+  imagenBannerPrincipal: string;
 
-    @ApiProperty({
-        example: ['M','XL','XXL'],
-        description: 'PROJECT sizes',
-    })
-    @Column('text',{
-        array: true
-    })
-    sizes: string[];
+  @ApiProperty({ description: 'Imagen del banner principal (mobile)' })
+  @Column('text', { nullable: true })
+  imagenBannerPrincipalMobile: string;
 
-    @ApiProperty({
-        example: 'women',
-        description: 'PROJECT gender',
-    })
-    @Column('text')
-    gender: string;
+  @ApiProperty({ description: 'Imágenes de características del proyecto', isArray: true })
+  @Column('text', { array: true, default: [] })
+  imagenesDeCaracteristicas: string[];
 
-    @ApiProperty()
-    @Column('text', {
-        array: true,
-        default: []
-    })
-    tags: string[];
+  @ApiProperty({ description: 'URL vista 360 del proyecto' })
+  @Column('text', { nullable: true })
+  vistaProyecto360: string;
 
-    // images
-    @ApiProperty()
-    @OneToMany(
-        () => ProjectImage,
-        (projectImage) => projectImage.project,
-        { cascade: true, eager: true }
-    )
-    images?: ProjectImage[];
+  @ApiProperty({ description: 'Imágenes de vistas del proyecto', isArray: true })
+  @Column('text', { array: true, default: [] })
+  imagenesVistasProyecto: string[];
 
+  @ApiProperty({ description: 'Imagen de fondo del mapa' })
+  @Column('text', { nullable: true })
+  imagenMapaFondo: string;
 
-    @ManyToOne(
-        () => User,
-        ( user ) => user.projects,
-        { eager: true }
-    )
-    user: User
+  @ApiProperty({ description: 'Link de Google Maps u otro mapa' })
+  @Column('text', { nullable: true })
+  linkMapa: string;
 
-    @BeforeInsert()
-    checkSlugInsert() {
+  @ApiProperty({ description: 'Imagen del segundo banner' })
+  @Column('text', { nullable: true })
+  imagenBaner2: string;
 
-        if ( !this.slug ) {
-            this.slug = this.title;
-        }
+  @ApiProperty({ description: 'Centros urbanos cercanos al proyecto' })
+  @Column('jsonb', { default: [] })
+  centrosUrbanosCercanos: {
+    nombre: string;
+    distancia: string;
+    tiempo: string;
+    linkMaps?: string;
+    imgCentroUrbano?: string;
+  }[];
 
-        this.slug = this.slug
-            .toLowerCase()
-            .replaceAll(' ','_')
-            .replaceAll("'",'')
+  @ApiProperty({ description: 'Imagen de sección de centros urbanos' })
+  @Column('text', { nullable: true })
+  imagenCentrosUrbanos: string;
 
+  @ApiProperty({ description: 'Atracciones turísticas cercanas' })
+  @Column('jsonb', { default: [] })
+  atraccionesTuristicas: {
+    nombre: string;
+    tiempo: string;
+    distancia: string;
+    linkMaps?: string;
+    imgAtraccionTuristica?: string;
+  }[];
+
+  @ApiProperty({ description: 'Imagen de sección de atracciones turísticas' })
+  @Column('text', { nullable: true })
+  imagenAtraccionesTuristicas: string;
+
+  @ManyToOne(() => User, (user) => user.project, { eager: true })
+  user: User;
+
+  @BeforeInsert()
+  checkSlugInsert() {
+    if (!this.idSlug) {
+      this.idSlug = this.name;
     }
+    this.idSlug = this.idSlug
+      .toLowerCase()
+      .replaceAll(' ', '_')
+      .replaceAll("'", '');
+  }
 
-    @BeforeUpdate()
-    checkSlugUpdate() {
-        this.slug = this.slug
-            .toLowerCase()
-            .replaceAll(' ','_')
-            .replaceAll("'",'')
-    }
-
-
+  @BeforeUpdate()
+  checkSlugUpdate() {
+    this.idSlug = this.idSlug
+      .toLowerCase()
+      .replaceAll(' ', '_')
+      .replaceAll("'", '');
+  }
 }
-

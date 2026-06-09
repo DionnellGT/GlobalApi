@@ -6,23 +6,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  ArrayContains,
-  Between,
-  DataSource,
-  ILike,
-  In,
-  LessThanOrEqual,
-  MoreThanOrEqual,
-  Repository,
-} from 'typeorm';
+import { DataSource, ILike, Repository } from 'typeorm';
 
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
 
 import { validate as isUUID } from 'uuid';
-import { ProjectImage, Project } from './entities';
+import { Project } from './entities';
 import { User } from '../auth/entities/user.entity';
 
 @Injectable()
@@ -33,180 +24,93 @@ export class ProjectsService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
 
-    @InjectRepository(ProjectImage)
-    private readonly projectImageRepository: Repository<ProjectImage>,
-
     private readonly dataSource: DataSource,
   ) {}
 
   async create(createProjectDto: CreateProjectDto, user: User) {
     try {
-      const { images = [], ...ProjectDetails } = createProjectDto;
-
-      const Project = this.projectRepository.create({
-        ...ProjectDetails,
-        images: images.map((image) =>
-          this.projectImageRepository.create({ url: image }),
-        ),
+      const project = this.projectRepository.create({
+        ...createProjectDto,
         user,
       });
-
-      await this.projectRepository.save(Project);
-
-      return { ...Project, images };
+      await this.projectRepository.save(project);
+      return project;
     } catch (error) {
       this.handleDBExceptions(error);
     }
   }
 
   async findAll(paginationDto: PaginationDto) {
-    const {
-      limit = 12,
-      offset = 0,
-      gender = '',
-      minPrice,
-      maxPrice,
-      sizes,
-      q: query,
-    } = paginationDto;
+    const { limit = 12, offset = 0, q: query } = paginationDto;
 
-    const sizesArray = sizes ? sizes.toUpperCase().split(',') : undefined;
-
-    const priceWhere =
-      minPrice !== undefined && maxPrice !== undefined
-        ? Between(minPrice, maxPrice)
-        : minPrice !== undefined
-        ? MoreThanOrEqual(minPrice)
-        : maxPrice !== undefined
-        ? LessThanOrEqual(maxPrice)
-        : undefined;
-
-    const Projects = await this.projectRepository.find({
+    const [projects, total] = await this.projectRepository.findAndCount({
       take: limit,
       skip: offset,
-      relations: {
-        images: true,
-      },
-      order: {
-        id: 'ASC',
-      },
-      where: {
-        gender: gender ? gender : undefined,
-        price: priceWhere,
-        sizes: sizesArray ? ArrayContains(sizesArray) : undefined,
-        title: query ? ILike(`%${query}%`) : undefined,
-      },
+      order: { name: 'ASC' },
+      where: query ? { name: ILike(`%${query}%`) } : undefined,
     });
 
-    const totalProjects = await this.projectRepository.count({
-      where: {
-        gender: gender ? gender : undefined,
-        price: priceWhere,
-        sizes: sizesArray ? ArrayContains(sizesArray) : undefined,
-        title: query ? ILike(`%${query}%`) : undefined,
-      },
-    });
- 
     return {
-      count: totalProjects,
-      pages: Math.ceil(totalProjects / limit),
-      Projects: Projects.map((Project) => ({
-        ...Project,
-        images: Project.images.map((img) => img.url),
-      })),
+      count: total,
+      pages: Math.ceil(total / limit),
+      projects,
     };
   }
 
   async findOne(term: string) {
-    let Project: Project;
+    let project: Project;
 
     if (isUUID(term)) {
-      Project = await this.projectRepository.findOneBy({ id: term });
+      project = await this.projectRepository.findOneBy({ id: term });
     } else {
-      const queryBuilder = this.projectRepository.createQueryBuilder('prod');
-      Project = await queryBuilder
-        .where('UPPER(title) =:title or slug =:slug', {
-          title: term.toUpperCase(),
+      project = await this.projectRepository
+        .createQueryBuilder('p')
+        .where('p.idSlug = :slug OR UPPER(p.name) = :name', {
           slug: term.toLowerCase(),
+          name: term.toUpperCase(),
         })
-        .leftJoinAndSelect('prod.images', 'prodImages')
         .getOne();
     }
 
-    if (!Project) throw new NotFoundException(`Project with ${term} not found`);
+    if (!project)
+      throw new NotFoundException(`Project with term "${term}" not found`);
 
-    return Project;
-  }
-
-  async findOnePlain(term: string) {
-    const { images = [], ...rest } = await this.findOne(term);
-    return {
-      ...rest,
-      images: images.map((image) => image.url),
-    };
+    return project;
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {
-    const { images, ...toUpdate } = updateProjectDto;
+    const project = await this.projectRepository.preload({ id, ...updateProjectDto });
 
-    const Project = await this.projectRepository.preload({ id, ...toUpdate });
-
-    if (!Project)
+    if (!project)
       throw new NotFoundException(`Project with id: ${id} not found`);
 
-    // Create query runner
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
+    project.user = user;
 
     try {
-      if (images) {
-        await queryRunner.manager.delete(ProjectImage, { Project: { id } });
-
-        Project.images = images.map((image) =>
-          this.projectImageRepository.create({ url: image }),
-        );
-      }
-
-      // await this.projectRepository.save( Project );
-      Project.user = user;
-
-      await queryRunner.manager.save(Project);
-
-      await queryRunner.commitTransaction();
-      await queryRunner.release();
-
-      return this.findOnePlain(id);
+      await this.projectRepository.save(project);
+      return project;
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-      await queryRunner.release();
       this.handleDBExceptions(error);
     }
   }
 
   async remove(id: string) {
-    const Project = await this.findOne(id);
-    await this.projectRepository.remove(Project);
-  }
-
-  private handleDBExceptions(error: any) {
-    if (error.code === '23505') throw new BadRequestException(error.detail);
-
-    this.logger.error(error);
-    // console.log(error)
-    throw new InternalServerErrorException(
-      'Unexpected error, check server logs',
-    );
+    const project = await this.findOne(id);
+    await this.projectRepository.remove(project);
   }
 
   async deleteAllProjects() {
-    const query = this.projectRepository.createQueryBuilder('Project');
-
     try {
-      return await query.delete().where({}).execute();
+      return await this.projectRepository.createQueryBuilder('project')
+        .delete().where({}).execute();
     } catch (error) {
       this.handleDBExceptions(error);
     }
   }
-}
 
+  private handleDBExceptions(error: any) {
+    if (error.code === '23505') throw new BadRequestException(error.detail);
+    this.logger.error(error);
+    throw new InternalServerErrorException('Unexpected error, check server logs');
+  }
+}

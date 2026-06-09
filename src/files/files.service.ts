@@ -3,20 +3,17 @@ import { join } from 'path';
 
 import { Injectable, BadRequestException } from '@nestjs/common';
 
-
 @Injectable()
 export class FilesService {
-  
-    getStaticProjectImage( imageName: string ) {
 
-        const path = join( __dirname, '../../static/projects', imageName );
+  getStaticProjectImage(projectName: string, imageName: string) {
+    const path = join(__dirname, '../../static/projects', projectName, imageName);
 
-        if ( !existsSync(path) ) 
-            throw new BadRequestException(`No PROJECT found with image ${ imageName }`);
+    if (!existsSync(path))
+      throw new BadRequestException(
+        `No image '${imageName}' found in project '${projectName}'`,
+      );
 
-        return path;
-    }
-
-
+    return path;
+  }
 }
-

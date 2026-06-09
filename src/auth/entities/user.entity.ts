@@ -45,7 +45,7 @@ export class User {
         () => Project,
         ( project ) => project.user
     )
-    project: Project;
+    project: Project[];
 
     @BeforeInsert()
     checkFieldsBeforeInsert() {
