@@ -5,6 +5,7 @@ import { AuthModule } from '../auth/auth.module';
 import { Project } from './entities';
 import { ProjectsController } from './proyects.controller';
 import { ProjectsService } from './proyects.service';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   controllers: [ProjectsController],
@@ -12,6 +13,7 @@ import { ProjectsService } from './proyects.service';
   imports: [
     TypeOrmModule.forFeature([Project]),
     AuthModule,
+    ConfigModule,
   ],
   exports: [
     ProjectsService,

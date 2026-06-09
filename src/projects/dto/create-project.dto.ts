@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsArray, IsOptional, IsString, IsUrl, MinLength, ValidateNested,
+  IsArray, IsBoolean, IsOptional, IsString, IsUrl, MinLength, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -26,6 +26,11 @@ export class CreateProjectDto {
   @IsString()
   @MinLength(1)
   name: string;
+
+  @ApiProperty({ description: 'Estado activo del proyecto', required: false, default: true })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 
   @ApiProperty({ description: 'Slug único (se autogenera si no se envía)', required: false })
   @IsString()

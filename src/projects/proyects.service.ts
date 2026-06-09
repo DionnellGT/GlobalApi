@@ -78,6 +78,11 @@ export class ProjectsService {
     return project;
   }
 
+  async findOnePlain(term: string) {
+    const project = await this.findOne(term);
+    return project;
+  }
+
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {
     const project = await this.projectRepository.preload({ id, ...updateProjectDto });
 

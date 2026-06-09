@@ -10,6 +10,10 @@ export class Project {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty({ description: 'Indica si el proyecto está activo', default: true })
+  @Column('bool', { default: true })
+  isActive: boolean;
+
   @ApiProperty({ description: 'Slug único del proyecto', uniqueItems: true })
   @Column('text', { unique: true })
   idSlug: string;
