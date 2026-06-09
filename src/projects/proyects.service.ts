@@ -168,6 +168,12 @@ export class ProjectsService {
     }
   }
 
+  // Método específico para actualizar solo imágenes, sin tocar relaciones ni user
+  async updateImages(id: string, updateDto: UpdateProjectDto) {
+    await this.projectRepository.update(id, updateDto);
+    return this.findOne(id);
+  }
+
   async remove(id: string) {
     const project = await this.findOne(id);
     await this.projectRepository.remove(project);
