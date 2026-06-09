@@ -12,7 +12,6 @@ import {
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 
 import { Project } from './entities/project.entity';
-import { ProjectsService } from './projects.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PaginationDto } from '../common/dtos/pagination.dto';
@@ -20,6 +19,7 @@ import { PaginationDto } from '../common/dtos/pagination.dto';
 import { Auth, GetUser } from '../auth/decorators';
 import { User } from '../auth/entities/user.entity';
 import { ValidRoles } from '../auth/interfaces';
+import { ProjectsService } from './proyects.service';
 
 @ApiTags('Project')
 @Controller('Project')
