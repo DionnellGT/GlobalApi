@@ -1,10 +1,11 @@
-import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { BeforeInsert, BeforeUpdate, Column, Entity, ManyToOne, OneToMany, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../auth/entities/user.entity';
 import { CentroUrbano } from './centro-urbano.entity';
 import { AtraccionTuristica } from './atraccion-turistica.entity';
 
 @Entity({ name: 'Projects' })
+@Unique('UQ_orden_marca', ['orden', 'marca'])   // ← orden único por marca
 export class Project {
 
   @PrimaryGeneratedColumn('uuid')

@@ -3,7 +3,7 @@ import {
   IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUrl, Min, MinLength, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Column } from 'typeorm/browser/decorator/columns/Column.js';
+
 
 class CentroUrbanoDto {
   @IsString() nombre: string;

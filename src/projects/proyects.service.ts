@@ -31,20 +31,37 @@ export class ProjectsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(createProjectDto: CreateProjectDto, user: User) {
-    const { centrosUrbanosCercanos = [], atraccionesTuristicas = [], ...projectData } = createProjectDto;
+ async create(createProjectDto: CreateProjectDto, user: User) {
+  const { centrosUrbanosCercanos = [], atraccionesTuristicas = [], ...projectData } = createProjectDto;
 
-    try {
+  // Validar orden único por marca si se envían ambos campos
+  if (projectData.orden !== undefined && projectData.marca) {
+    const existe = await this.projectRepository.findOne({
+      where: { orden: projectData.orden, marca: projectData.marca },
+    });
+    if (existe) {
+      throw new BadRequestException(
+        `Ya existe un proyecto con orden ${projectData.orden} para la marca "${projectData.marca}"`
+      );
+    }
+  }
+
+  try {
       const project = this.projectRepository.create({
         ...projectData,
         user,
-        centrosUrbanosCercanos: centrosUrbanosCercanos.map(c =>
-          this.centroUrbanoRepository.create(c)
-        ),
-        atraccionesTuristicas: atraccionesTuristicas.map(a =>
-          this.atraccionRepository.create(a)
-        ),
       });
+
+      // Guardar el proyecto primero para tener el id
+      await this.projectRepository.save(project);
+
+      // Luego asignar las relaciones con el project ya persistido
+      project.centrosUrbanosCercanos = centrosUrbanosCercanos.map(c =>
+        this.centroUrbanoRepository.create({ ...c, project })
+      );
+      project.atraccionesTuristicas = atraccionesTuristicas.map(a =>
+        this.atraccionRepository.create({ ...a, project })
+      );
 
       await this.projectRepository.save(project);
       return project;
@@ -99,6 +116,19 @@ export class ProjectsService {
 
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {
     const { centrosUrbanosCercanos, atraccionesTuristicas, ...projectData } = updateProjectDto;
+
+    // Validar orden único por marca excluyendo el proyecto actual
+    if (projectData.orden !== undefined && projectData.marca) {
+      const existe = await this.projectRepository.findOne({
+        where: { orden: projectData.orden, marca: projectData.marca },
+      });
+      if (existe && existe.id !== id) {
+        throw new BadRequestException(
+          `Ya existe un proyecto con orden ${projectData.orden} para la marca "${projectData.marca}"`
+        );
+      }
+    }
+
 
     const project = await this.findOne(id);
 
