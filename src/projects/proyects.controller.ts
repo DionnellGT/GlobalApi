@@ -27,110 +27,104 @@ export class ProjectsController {
     private readonly configService: ConfigService,
   ) {}
 
-  @Post()
-  @Auth()
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileFieldsInterceptor(
-      [
-        { name: 'imageCarrousel',              maxCount: 1  },
-        { name: 'imagenBannerPrincipal',        maxCount: 1  },
-        { name: 'imagenBannerPrincipalMobile',  maxCount: 1  },
-        { name: 'imagenBaner2',                 maxCount: 1  },
-        { name: 'imagenMapaFondo',              maxCount: 1  },
-        { name: 'imagenCentrosUrbanos',         maxCount: 1  },
-        { name: 'imagenAtraccionesTuristicas',  maxCount: 1  },
-        { name: 'imagenesDeCaracteristicas',    maxCount: 10 },
-        { name: 'imagenesVistasProyecto',       maxCount: 10 },
-      ],
-      {
-        fileFilter,
-        // Sin storage aún — usamos memoryStorage temporalmente
-        // porque aún no tenemos el slug del proyecto
-        storage: undefined,
-      },
-    ),
-  )
-  async create(
-    @Body() body: any,
-    @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
-    @GetUser() user: User,
-  ) {
-    const hostApi = this.configService.get('HOST_API');
+@Post()
+@Auth()
+@ApiConsumes('multipart/form-data')
+@UseInterceptors(
+  FileFieldsInterceptor(
+    [
+      { name: 'imageCarrousel',              maxCount: 1  },
+      { name: 'imagenBannerPrincipal',        maxCount: 1  },
+      { name: 'imagenBannerPrincipalMobile',  maxCount: 1  },
+      { name: 'imagenBaner2',                 maxCount: 1  },
+      { name: 'imagenMapaFondo',              maxCount: 1  },
+      { name: 'imagenCentrosUrbanos',         maxCount: 1  },
+      { name: 'imagenAtraccionesTuristicas',  maxCount: 1  },
+      { name: 'imagenesDeCaracteristicas',    maxCount: 10 },
+      { name: 'imagenesVistasProyecto',       maxCount: 10 },
+    ],
+    {
+      fileFilter,
+      storage: diskStorage({
+        destination: (req, file, cb) => {
+          // Usamos el name del body para construir la carpeta
+          // igual que lo hace el slug: lowercase + espacios a _
+          const folderName = (req.body.name as string)
+            ?.toLowerCase()
+            .trim()
+            .replaceAll(' ', '_')
+            .replaceAll("'", '') || 'default';
 
-    // Parsear campos JSON que vienen como string en form-data
-    const parseField = (field: any) => {
-      if (!field) return undefined;
-      try { return JSON.parse(field); } catch { return field; }
-    };
+          const folderPath = `./static/projects/${folderName}`;
+          fs.mkdirSync(folderPath, { recursive: true });
+          cb(null, folderPath);
+        },
+        filename: fileNamer,  // ← usa el helper existente que genera uuid
+      }),
+    },
+  ),
+)
+async create(
+  @Body() body: any,
+  @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
+  @GetUser() user: User,
+) {
+  const hostApi = this.configService.get('HOST_API');
 
-    // Construir el DTO con los datos de texto
-    const createProjectDto: CreateProjectDto = {
-      name:                        body.name,
-      idSlug:                      body.idSlug,
-      marca:                       body.marca,
-      orden:                       body.orden ? parseInt(body.orden) : undefined,
-      isActive:                    body.isActive !== undefined ? body.isActive === 'true' : undefined,
-      linkMapa:                    body.linkMapa,
-      vistaProyecto360:            body.vistaProyecto360,
-      centrosUrbanosCercanos:      parseField(body.centrosUrbanosCercanos),
-      atraccionesTuristicas:       parseField(body.atraccionesTuristicas),
-    };
+  const parseField = (field: any) => {
+    if (!field) return undefined;
+    try { return JSON.parse(field); } catch { return field; }
+  };
 
-    // 1. Crear el proyecto en BD sin imágenes
-    const project = await this.ProjectsService.create(createProjectDto, user);
+  // La carpeta se nombró con el name, pero el slug puede variar
+  // levemente (ej: acentos). Usamos el mismo sanitizado para la URL.
+  const folderName = (body.name as string)
+    ?.toLowerCase()
+    .trim()
+    .replaceAll(' ', '_')
+    .replaceAll("'", '') || 'default';
 
-    // 2. Crear la carpeta usando el slug generado
-    const folderName = project.idSlug;
-    const folderPath = `./static/projects/${folderName}`;
-    fs.mkdirSync(folderPath, { recursive: true });
+  // Helper para construir la URL a partir del filename que multer ya guardó
+  const toUrl = (file: Express.Multer.File): string =>
+    `${hostApi}/files/project/${folderName}/${file.filename}`;
 
-    // 3. Helper para guardar un archivo y devolver su URL
-    const saveFile = (file: Express.Multer.File): string => {
-      const ext = file.mimetype.split('/')[1];
-      const fileName = `${require('uuid').v4()}.${ext}`;
-      fs.writeFileSync(`${folderPath}/${fileName}`, file.buffer);
-      return `${hostApi}/files/project/${folderName}/${fileName}`;
-    };
+  const createProjectDto: CreateProjectDto = {
+    name:               body.name,
+    idSlug:             body.idSlug,
+    marca:              body.marca,
+    orden:              body.orden ? parseInt(body.orden) : undefined,
+    isActive:           body.isActive !== undefined ? body.isActive === 'true' : undefined,
+    linkMapa:           body.linkMapa,
+    vistaProyecto360:   body.vistaProyecto360,
+    centrosUrbanosCercanos:   parseField(body.centrosUrbanosCercanos),
+    atraccionesTuristicas:    parseField(body.atraccionesTuristicas),
 
-    // 4. Construir el DTO de actualización con las URLs de las imágenes
-    const updateImagenesDto: UpdateProjectDto = {};
+    // Imágenes simples — si viene el archivo usamos su URL, si no undefined
+    imageCarrousel:             files?.imageCarrousel?.[0]
+                                  ? toUrl(files.imageCarrousel[0]) : undefined,
+    imagenBannerPrincipal:      files?.imagenBannerPrincipal?.[0]
+                                  ? toUrl(files.imagenBannerPrincipal[0]) : undefined,
+    imagenBannerPrincipalMobile: files?.imagenBannerPrincipalMobile?.[0]
+                                  ? toUrl(files.imagenBannerPrincipalMobile[0]) : undefined,
+    imagenBaner2:               files?.imagenBaner2?.[0]
+                                  ? toUrl(files.imagenBaner2[0]) : undefined,
+    imagenMapaFondo:            files?.imagenMapaFondo?.[0]
+                                  ? toUrl(files.imagenMapaFondo[0]) : undefined,
+    imagenCentrosUrbanos:       files?.imagenCentrosUrbanos?.[0]
+                                  ? toUrl(files.imagenCentrosUrbanos[0]) : undefined,
+    imagenAtraccionesTuristicas: files?.imagenAtraccionesTuristicas?.[0]
+                                  ? toUrl(files.imagenAtraccionesTuristicas[0]) : undefined,
 
-    if (files?.imageCarrousel?.[0])
-      updateImagenesDto.imageCarrousel = saveFile(files.imageCarrousel[0]);
+    // Imágenes múltiples
+    imagenesDeCaracteristicas:  files?.imagenesDeCaracteristicas?.length
+                                  ? files.imagenesDeCaracteristicas.map(toUrl) : undefined,
+    imagenesVistasProyecto:     files?.imagenesVistasProyecto?.length
+                                  ? files.imagenesVistasProyecto.map(toUrl) : undefined,
+  };
 
-    if (files?.imagenBannerPrincipal?.[0])
-      updateImagenesDto.imagenBannerPrincipal = saveFile(files.imagenBannerPrincipal[0]);
-
-    if (files?.imagenBannerPrincipalMobile?.[0])
-      updateImagenesDto.imagenBannerPrincipalMobile = saveFile(files.imagenBannerPrincipalMobile[0]);
-
-    if (files?.imagenBaner2?.[0])
-      updateImagenesDto.imagenBaner2 = saveFile(files.imagenBaner2[0]);
-
-    if (files?.imagenMapaFondo?.[0])
-      updateImagenesDto.imagenMapaFondo = saveFile(files.imagenMapaFondo[0]);
-
-    if (files?.imagenCentrosUrbanos?.[0])
-      updateImagenesDto.imagenCentrosUrbanos = saveFile(files.imagenCentrosUrbanos[0]);
-
-    if (files?.imagenAtraccionesTuristicas?.[0])
-      updateImagenesDto.imagenAtraccionesTuristicas = saveFile(files.imagenAtraccionesTuristicas[0]);
-
-    if (files?.imagenesDeCaracteristicas?.length)
-      updateImagenesDto.imagenesDeCaracteristicas = files.imagenesDeCaracteristicas.map(saveFile);
-
-    if (files?.imagenesVistasProyecto?.length)
-      updateImagenesDto.imagenesVistasProyecto = files.imagenesVistasProyecto.map(saveFile);
-
-    // 5. Si hay imágenes, actualizar el proyecto con las URLs
-    if (Object.keys(updateImagenesDto).length > 0) {
-      return this.ProjectsService.updateImages(project.id, updateImagenesDto);
-    }
-
-    return project;
-  }
-
+  // Un solo create — ya incluye todo, imágenes y relaciones
+  return this.ProjectsService.create(createProjectDto, user);
+}
   @Get()
   findAll(@Query() paginationDto: PaginationDto) {
     return this.ProjectsService.findAll(paginationDto);
