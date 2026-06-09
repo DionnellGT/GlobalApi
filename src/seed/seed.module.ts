@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
-
-import { AuthModule } from './../auth/auth.module';
-import { PROJECTsModule } from './../PROJECTs/PROJECTs.module';
-
+import { AuthModule } from '../auth/auth.module';
+import { ProjectsModule } from '../projects/proyects.module';
 import { SeedService } from './seed.service';
 import { SeedController } from './seed.controller';
 
@@ -10,9 +8,8 @@ import { SeedController } from './seed.controller';
   controllers: [SeedController],
   providers: [SeedService],
   imports: [
-    PROJECTsModule,
+    ProjectsModule,
     AuthModule,
   ]
 })
 export class SeedModule {}
-

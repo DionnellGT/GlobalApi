@@ -1,5 +1,5 @@
 import { BeforeInsert, BeforeUpdate, Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
-import { Project } from '../../Projects/entities';
+import { Project } from '../../projects/entities';
 
 
 @Entity('users')
