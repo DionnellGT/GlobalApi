@@ -1,19 +1,17 @@
 import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-  NotFoundException,
+  BadRequestException, Injectable, InternalServerErrorException,
+  Logger, NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, ILike, Repository } from 'typeorm';
+import { validate as isUUID } from 'uuid';
 
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 import { PaginationDto } from 'src/common/dtos/pagination.dto';
-
-import { validate as isUUID } from 'uuid';
-import { Project } from './entities';
+import { Project } from './entities/project.entity';
+import { CentroUrbano } from './entities/centro-urbano.entity';
+import { AtraccionTuristica } from './entities/atraccion-turistica.entity';
 import { User } from '../auth/entities/user.entity';
 
 @Injectable()
@@ -24,15 +22,30 @@ export class ProjectsService {
     @InjectRepository(Project)
     private readonly projectRepository: Repository<Project>,
 
+    @InjectRepository(CentroUrbano)
+    private readonly centroUrbanoRepository: Repository<CentroUrbano>,
+
+    @InjectRepository(AtraccionTuristica)
+    private readonly atraccionRepository: Repository<AtraccionTuristica>,
+
     private readonly dataSource: DataSource,
   ) {}
 
   async create(createProjectDto: CreateProjectDto, user: User) {
+    const { centrosUrbanosCercanos = [], atraccionesTuristicas = [], ...projectData } = createProjectDto;
+
     try {
       const project = this.projectRepository.create({
-        ...createProjectDto,
+        ...projectData,
         user,
+        centrosUrbanosCercanos: centrosUrbanosCercanos.map(c =>
+          this.centroUrbanoRepository.create(c)
+        ),
+        atraccionesTuristicas: atraccionesTuristicas.map(a =>
+          this.atraccionRepository.create(a)
+        ),
       });
+
       await this.projectRepository.save(project);
       return project;
     } catch (error) {
@@ -48,23 +61,25 @@ export class ProjectsService {
       skip: offset,
       order: { name: 'ASC' },
       where: query ? { name: ILike(`%${query}%`) } : undefined,
+      relations: { centrosUrbanosCercanos: true, atraccionesTuristicas: true },
     });
 
-    return {
-      count: total,
-      pages: Math.ceil(total / limit),
-      projects,
-    };
+    return { count: total, pages: Math.ceil(total / limit), projects };
   }
 
   async findOne(term: string) {
     let project: Project;
 
     if (isUUID(term)) {
-      project = await this.projectRepository.findOneBy({ id: term });
+      project = await this.projectRepository.findOne({
+        where: { id: term },
+        relations: { centrosUrbanosCercanos: true, atraccionesTuristicas: true },
+      });
     } else {
       project = await this.projectRepository
         .createQueryBuilder('p')
+        .leftJoinAndSelect('p.centrosUrbanosCercanos', 'centros')
+        .leftJoinAndSelect('p.atraccionesTuristicas', 'atracciones')
         .where('p.idSlug = :slug OR UPPER(p.name) = :name', {
           slug: term.toLowerCase(),
           name: term.toUpperCase(),
@@ -79,23 +94,47 @@ export class ProjectsService {
   }
 
   async findOnePlain(term: string) {
-    const project = await this.findOne(term);
-    return project;
+    return this.findOne(term);
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {
-    const project = await this.projectRepository.preload({ id, ...updateProjectDto });
+    const { centrosUrbanosCercanos, atraccionesTuristicas, ...projectData } = updateProjectDto;
 
-    if (!project)
-      throw new NotFoundException(`Project with id: ${id} not found`);
+    const project = await this.findOne(id);
 
-    project.user = user;
+    // Usar QueryRunner para hacerlo en una transacción
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
     try {
-      await this.projectRepository.save(project);
-      return project;
+      // Borrar los registros viejos si vienen nuevos en el body
+      if (centrosUrbanosCercanos) {
+        await queryRunner.manager.delete(CentroUrbano, { project: { id } });
+        project.centrosUrbanosCercanos = centrosUrbanosCercanos.map(c =>
+          this.centroUrbanoRepository.create({ ...c, project })
+        );
+      }
+
+      if (atraccionesTuristicas) {
+        await queryRunner.manager.delete(AtraccionTuristica, { project: { id } });
+        project.atraccionesTuristicas = atraccionesTuristicas.map(a =>
+          this.atraccionRepository.create({ ...a, project })
+        );
+      }
+
+      Object.assign(project, projectData);
+      project.user = user;
+
+      await queryRunner.manager.save(project);
+      await queryRunner.commitTransaction();
+
+      return this.findOne(id);
     } catch (error) {
+      await queryRunner.rollbackTransaction();
       this.handleDBExceptions(error);
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -106,7 +145,8 @@ export class ProjectsService {
 
   async deleteAllProjects() {
     try {
-      return await this.projectRepository.createQueryBuilder('project')
+      return await this.projectRepository
+        .createQueryBuilder('project')
         .delete().where({}).execute();
     } catch (error) {
       this.handleDBExceptions(error);
