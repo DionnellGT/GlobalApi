@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsArray, IsBoolean, IsOptional, IsString, IsUrl, MinLength, ValidateNested,
+  IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUrl, Min, MinLength, ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Column } from 'typeorm/browser/decorator/columns/Column.js';
 
 class CentroUrbanoDto {
   @IsString() nombre: string;
@@ -26,6 +27,12 @@ export class CreateProjectDto {
   @IsString()
   @MinLength(1)
   name: string;
+
+  @ApiProperty({ description: 'Orden de visualización', required: false, default: 0 })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  orden?: number;
 
   @ApiProperty({ description: 'Estado activo del proyecto', required: false, default: true })
   @IsBoolean()

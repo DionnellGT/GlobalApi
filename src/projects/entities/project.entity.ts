@@ -10,6 +10,10 @@ export class Project {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @ApiProperty({ description: 'Orden de visualización del proyecto', default: 0 })
+  @Column('int', { default: 0 })
+  orden: number; 
+
   @Column('bool', { default: true })
   isActive: boolean;
 

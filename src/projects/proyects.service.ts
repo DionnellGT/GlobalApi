@@ -59,7 +59,7 @@ export class ProjectsService {
     const [projects, total] = await this.projectRepository.findAndCount({
       take: limit,
       skip: offset,
-      order: { name: 'ASC' },
+      order: { orden: 'ASC', name: 'ASC' },
       where: query ? { name: ILike(`%${query}%`) } : undefined,
       relations: { centrosUrbanosCercanos: true, atraccionesTuristicas: true },
     });
