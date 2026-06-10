@@ -20,6 +20,7 @@ export const PROJECT_FILE_FIELDS = [
 export const projectDiskStorage = diskStorage({
   destination: (req, file, cb) => {
     const folderName = buildFolderName(req.body.name, req.body.marca);
+    // ⚠️ req.body.name puede estar undefined en este momento
     const folderPath = `./static/projects/${folderName}`;
     fs.mkdirSync(folderPath, { recursive: true });
     cb(null, folderPath);
