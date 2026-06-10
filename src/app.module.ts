@@ -36,6 +36,7 @@ import { ProjectsModule } from './projects/proyects.module';
 
     ServeStaticModule.forRoot({
       rootPath: join(__dirname,'..','public'), 
+      exclude: ['/api/(.*)'],
     }),
 
     ProjectsModule,

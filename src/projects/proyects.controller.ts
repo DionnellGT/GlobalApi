@@ -46,7 +46,7 @@ export class ProjectsController {
   findAll(@Query() paginationDto: PaginationDto) {
     return this.ProjectsService.findAll(paginationDto);
   }
-
+ 
   @Get('brand/:marca')
   findByMarca(@Param('marca') marca: Marca) {
     return this.ProjectsService.findByMarca(marca);
