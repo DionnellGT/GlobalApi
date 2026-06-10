@@ -13,6 +13,7 @@ import { Project } from './entities/project.entity';
 import { CentroUrbano } from './entities/centro-urbano.entity';
 import { AtraccionTuristica } from './entities/atraccion-turistica.entity';
 import { User } from '../auth/entities/user.entity';
+import { Marca } from './enums';
 
 @Injectable()
 export class ProjectsService {
@@ -109,6 +110,22 @@ export class ProjectsService {
 
   async findOnePlain(term: string) {
     return this.findOne(term);
+  }
+
+  async findByMarca(marca: Marca) {
+    const projects = await this.projectRepository
+      .createQueryBuilder('p')
+      .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel'])
+      .where('p.marca = :marca', { marca })
+      .orderBy('p.orden', 'ASC')
+      .addOrderBy('p.name', 'ASC')
+      .getMany();
+
+    if (!projects || projects.length === 0) {
+      throw new NotFoundException(`No projects found for marca "${marca}"`);
+    }
+
+    return projects;
   }
 
   async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {

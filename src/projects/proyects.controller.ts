@@ -15,6 +15,7 @@ import { ValidRoles } from '../auth/interfaces';
 import { ProjectsService } from './proyects.service';
 import { ConfigService } from '@nestjs/config';
 import { PROJECT_FILE_FIELDS, projectMulterOptions, buildCreateProjectDto } from './helpers';
+import { Marca } from './enums';
 
 @ApiTags('Project')
 @Controller('Project')
@@ -41,9 +42,14 @@ export class ProjectsController {
     return this.ProjectsService.create(createProjectDto, user);
   }
 
-  @Get()
+  @Get() 
   findAll(@Query() paginationDto: PaginationDto) {
     return this.ProjectsService.findAll(paginationDto);
+  }
+
+  @Get('brand/:marca')
+  findByMarca(@Param('marca') marca: Marca) {
+    return this.ProjectsService.findByMarca(marca);
   }
 
   @Get(':term')
