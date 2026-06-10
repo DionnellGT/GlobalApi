@@ -52,6 +52,14 @@ export class ProjectsController {
     return this.ProjectsService.findByMarca(marca);
   }
 
+  @Get('brand/:marca/:idSlug')
+  findByMarcaAndSlug(
+    @Param('marca') marca: Marca,
+    @Param('idSlug') idSlug: string,
+  ) {
+    return this.ProjectsService.findByMarcaAndSlug(marca, idSlug);
+  }
+
   @Get(':term')
   findOne(@Param('term') term: string) {
     return this.ProjectsService.findOnePlain(term);

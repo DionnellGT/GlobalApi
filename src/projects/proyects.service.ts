@@ -115,7 +115,7 @@ export class ProjectsService {
   async findByMarca(marca: Marca) {
     const projects = await this.projectRepository
       .createQueryBuilder('p')
-      .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel'])
+      .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel', 'p.isActive'])
       .where('p.marca = :marca', { marca })
       .orderBy('p.orden', 'ASC')
       .addOrderBy('p.name', 'ASC')
@@ -128,7 +128,25 @@ export class ProjectsService {
     return projects;
   }
 
-  async update(id: string, updateProjectDto: UpdateProjectDto, user: User) {
+  async findByMarcaAndSlug(marca: Marca, idSlug: string) {
+    const project = await this.projectRepository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.centrosUrbanosCercanos', 'centros')
+      .leftJoinAndSelect('p.atraccionesTuristicas', 'atracciones')
+      .where('p.marca = :marca', { marca })
+      .andWhere('p.idSlug = :idSlug', { idSlug })
+      .getOne();
+
+    if (!project) {
+      throw new NotFoundException(
+        `No project found for marca "${marca}" with idSlug "${idSlug}"`,
+      );
+    }
+
+    return project;
+  }
+
+  async update(id: string, updateProjectDto: UpdateProjectDto, user: User ) {
     const { centrosUrbanosCercanos, atraccionesTuristicas, ...projectData } = updateProjectDto;
 
     // Validar orden único por marca excluyendo el proyecto actual
