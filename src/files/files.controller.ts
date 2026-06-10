@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 
 import { Response } from 'express';
 import { diskStorage } from 'multer';
+import { join } from 'path';
 import { FilesService } from './files.service';
 import { fileFilter, fileNamer } from './helpers';
 
@@ -48,7 +49,7 @@ export class FilesController {
             .replace(/\s+/g, '_')
             .replace(/[^a-z0-9_-]/g, '') || 'default';
 
-          const folderPath = `./static/projects/${projectName}`;
+          const folderPath = join(process.cwd(), 'static', 'projects', projectName);
           const fs = require('fs');
           fs.mkdirSync(folderPath, { recursive: true });
           cb(null, folderPath);

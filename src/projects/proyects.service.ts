@@ -50,21 +50,18 @@ export class ProjectsService {
       const project = this.projectRepository.create({
         ...projectData,
         user,
+        // Asignar relaciones directamente en la creación
+        centrosUrbanosCercanos: centrosUrbanosCercanos.map(c =>
+          this.centroUrbanoRepository.create({ ...c })
+        ),
+        atraccionesTuristicas: atraccionesTuristicas.map(a =>
+          this.atraccionRepository.create({ ...a })
+        ),
       });
 
-      // Guardar el proyecto primero para tener el id
-      await this.projectRepository.save(project);
-
-      // Luego asignar las relaciones con el project ya persistido
-      project.centrosUrbanosCercanos = centrosUrbanosCercanos.map(c =>
-        this.centroUrbanoRepository.create({ ...c, project })
-      );
-      project.atraccionesTuristicas = atraccionesTuristicas.map(a =>
-        this.atraccionRepository.create({ ...a, project })
-      );
-
-      await this.projectRepository.save(project);
-      return project;
+      // Guardar una sola vez - cascade se encarga de las relaciones
+      const savedProject = await this.projectRepository.save(project);
+      return savedProject;
     } catch (error) {
       this.handleDBExceptions(error);
     }

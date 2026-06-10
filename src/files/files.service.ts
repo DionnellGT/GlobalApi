@@ -7,7 +7,7 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 export class FilesService {
 
   getStaticProjectImage(projectName: string, imageName: string) {
-    const path = join(__dirname, '../../static/projects', projectName, imageName);
+    const path = join(process.cwd(), 'static', 'projectos', projectName, imageName);
 
     if (!existsSync(path))
       throw new BadRequestException(
