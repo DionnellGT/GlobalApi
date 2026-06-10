@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
-  IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUrl, Min, MinLength, ValidateNested,
+  IsArray, IsBoolean, IsInt, IsOptional, IsString, IsUrl, Min, MinLength, ValidateNested, IsEnum,
 } from 'class-validator';
 import { Type } from 'class-transformer';
+import { Marca } from '../enums';
 
 
 class CentroUrbanoDto {
@@ -44,10 +45,10 @@ export class CreateProjectDto {
   @IsOptional()
   idSlug?: string;
 
-  @ApiProperty({ description: 'Marca o desarrolladora del proyecto', required: false })
-  @IsString()
+  @ApiProperty({ description: 'Marca o desarrolladora del proyecto', required: false, enum: Marca })
+  @IsEnum(Marca)
   @IsOptional()
-  marca?: string;
+  marca?: Marca;
 
   @ApiProperty({ required: false })
   @IsString() @IsOptional()

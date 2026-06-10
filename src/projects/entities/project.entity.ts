@@ -3,6 +3,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { User } from '../../auth/entities/user.entity';
 import { CentroUrbano } from './centro-urbano.entity';
 import { AtraccionTuristica } from './atraccion-turistica.entity';
+import { Marca } from '../enums';
 
 @Entity({ name: 'Projects' })
 @Unique('UQ_orden_marca', ['orden', 'marca'])   // ← orden único por marca
@@ -21,8 +22,8 @@ export class Project {
   @Column('text', { unique: true })
   idSlug: string;
 
-  @Column('text', { nullable: true })
-  marca: string;
+  @Column({ type: 'enum', enum: Marca, nullable: true })
+  marca: Marca;
 
   @Column('text', { unique: true })
   name: string;
