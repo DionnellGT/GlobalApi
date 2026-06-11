@@ -21,6 +21,7 @@ export const uploadBufferToCloudinary = async (
     public_id:     publicId,
     resource_type: 'auto',
     overwrite:     true,
+    tags:          [folderName],
   });
 
   return result;
