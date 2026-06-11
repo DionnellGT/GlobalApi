@@ -1,4 +1,4 @@
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import * as fs from 'fs';
 import { join } from 'path';
 import { fileFilter, fileNamer } from '../../files/helpers';
@@ -18,21 +18,9 @@ export const PROJECT_FILE_FIELDS = [
   ...Array.from({ length: 10 }, (_, i) => ({ name: `imgAtraccionTuristica_${i}`, maxCount: 1 })),
 ];
 
-export const projectDiskStorage = diskStorage({
-  destination: (req, file, cb) => {
-    // ✅ Leer desde query params — disponibles antes que req.body
-    const name  = (req.query.name  as string) ?? (req.body.name  as string) ?? 'proyecto';
-    const marca = (req.query.marca as string) ?? (req.body.marca as string) ?? '';
-
-    const folderName = buildFolderName(name, marca);
-    const folderPath = join(process.cwd(), 'static', 'projectos', folderName);
-    fs.mkdirSync(folderPath, { recursive: true });
-    cb(null, folderPath);
-  },
-  filename: fileNamer,
-});
+export const projectMulterStorage = memoryStorage();
 
 export const projectMulterOptions = {
   fileFilter,
-  storage: projectDiskStorage,
+  storage: projectMulterStorage,
 };

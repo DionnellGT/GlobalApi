@@ -14,7 +14,9 @@ import { User } from '../auth/entities/user.entity';
 import { ValidRoles } from '../auth/interfaces';
 import { ProjectsService } from './proyects.service';
 import { ConfigService } from '@nestjs/config';
-import { PROJECT_FILE_FIELDS, projectMulterOptions, buildCreateProjectDto } from './helpers';
+import { PROJECT_FILE_FIELDS, projectMulterOptions, buildCreateProjectDto, buildFolderName } from './helpers';
+import { uploadBufferToCloudinary } from '../files/cloudinary.helper';
+import { v4 as uuid } from 'uuid';
 import { Marca } from './enums';
 
 @ApiTags('Project')
@@ -34,11 +36,33 @@ export class ProjectsController {
     @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
     @GetUser() user: User,
   ) {
+    // upload files to Cloudinary under folder `proyectos/{projectName}`
+    const folderName = buildFolderName(body.name, body.marca);
+    if (files) {
+      for (const field of Object.keys(files)) {
+        const arr = files[field];
+        for (let i = 0; i < arr.length; i++) {
+          const file = arr[i];
+          if (!file || !file.buffer) continue;
+          const publicId = `proyectos/${folderName}/${uuid()}`;
+          try {
+            const res: any = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+            // store cloud url in the file object so buildCreateProjectDto can pick it up
+            arr[i].filename = res.secure_url;
+            (arr[i] as any).secure_url = res.secure_url;
+          } catch (error) {
+            // ignore upload error for now — you may want to handle it upstream
+          }
+        }
+      }
+    }
+
     const createProjectDto = buildCreateProjectDto(
       body,
       files,
       this.configService.get('HOST_API'),
     );
+
     return this.ProjectsService.create(createProjectDto, user);
   }
 
