@@ -4,10 +4,8 @@ export const uploadBufferToCloudinary = async (
   buffer: Buffer,
   mimetype: string,
   publicId: string,
+  tags?: string[],
 ) => {
-  // Configurar dentro de la función, no al importar el módulo.
-  // Si se configura a nivel de módulo, process.env aún no tiene los valores
-  // porque NestJS/ConfigModule no ha terminado de cargar el .env.
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key:    process.env.CLOUDINARY_API_KEY,
@@ -21,7 +19,7 @@ export const uploadBufferToCloudinary = async (
     public_id:     publicId,
     resource_type: 'auto',
     overwrite:     true,
-    tags:          [folderName],
+    ...(tags && tags.length > 0 ? { tags } : {}),
   });
 
   return result;

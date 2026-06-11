@@ -37,8 +37,6 @@ export class ProjectsController {
     @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
     @GetUser() user: User,
   ) {
-    // La carpeta en Cloudinary será: projects/{marca}_{slug}
-    // Ejemplo: projects/elavellano_parcelas_chiloe
     const folderName = buildFolderName(body.name, body.marca);
     const cloudinaryFolder = `projects/${folderName}`;
 
@@ -49,17 +47,18 @@ export class ProjectsController {
           const file = arr[i];
           if (!file || !file.buffer) continue;
 
-          // public_id determina la ruta en Cloudinary
-          // Resultado: projects/elavellano_parcelas_chiloe/{uuid}
           const publicId = `${cloudinaryFolder}/${uuid()}`;
 
           try {
-            const result = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId, [folderName]);
-            // Guardar la URL segura en el objeto file para que buildCreateProjectDto la use
+            const result = await uploadBufferToCloudinary(
+              file.buffer,
+              file.mimetype,
+              publicId,
+              [folderName], // ← tag con el nombre del proyecto
+            );
             arr[i].filename = result.secure_url;
             (arr[i] as any).secure_url = result.secure_url;
           } catch (error: any) {
-            // Ahora el error es visible en lugar de ser ignorado silenciosamente
             throw new BadRequestException(
               `Error al subir archivo "${file.originalname}" (campo: ${field}): ${error.message}`
             );
