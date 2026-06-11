@@ -15,9 +15,9 @@ import { FileInterceptor } from '@nestjs/platform-express';
 
 import { Response } from 'express';
 import { memoryStorage } from 'multer';
-import { join } from 'path';
 import { FilesService } from './files.service';
-import { fileFilter, fileNamer } from './helpers';
+import { fileFilter } from './helpers';
+import { uploadBufferToCloudinary } from './cloudinary.helper'; // ← import estático, no require()
 
 @ApiTags('Files - Get and Upload')
 @Controller('files')
@@ -56,15 +56,13 @@ export class FilesController {
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_-]/g, '') || 'default';
 
-    // upload to cloudinary
+    const publicId = `proyectos/${sanitizedName}/${file.originalname.split('.').slice(0, -1).join('.')}_${Date.now()}`;
+
     try {
-      const publicId = `proyectos/${sanitizedName}/${file.originalname.split('.').slice(0, -1).join('.')}_${Date.now()}`;
-      // lazy import to avoid cycle
-      const { uploadBufferToCloudinary } = require('./cloudinary.helper');
-      const res: any = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+      const res = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
       return { secureUrl: res.secure_url, fileName: res.public_id };
-    } catch (error) {
-      throw new BadRequestException('Error uploading file');
+    } catch (error: any) {
+      throw new BadRequestException(`Error uploading file: ${error.message}`);
     }
   }
 }
