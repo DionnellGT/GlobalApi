@@ -14,7 +14,7 @@ import { ApiTags, ApiQuery } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 import { Response } from 'express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { join } from 'path';
 import { FilesService } from './files.service';
 import { fileFilter, fileNamer } from './helpers';
@@ -42,23 +42,10 @@ export class FilesController {
   @UseInterceptors(
     FileInterceptor('file', {
       fileFilter,
-      storage: diskStorage({
-        destination: (req, file, cb) => {
-          const projectName = (req.query.projectName as string)
-            ?.toLowerCase().trim()
-            .replace(/\s+/g, '_')
-            .replace(/[^a-z0-9_-]/g, '') || 'default';
-
-          const folderPath = join(process.cwd(), 'static', 'projects', projectName);
-          const fs = require('fs');
-          fs.mkdirSync(folderPath, { recursive: true });
-          cb(null, folderPath);
-        },
-        filename: fileNamer,
-      }),
+      storage: memoryStorage(),
     }),
   )
-  uploadProjectImage(
+  async uploadProjectImage(
     @UploadedFile() file: Express.Multer.File,
     @Query('projectName') projectName: string,
   ) {
@@ -69,7 +56,15 @@ export class FilesController {
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_-]/g, '') || 'default';
 
-    const secureUrl = `${this.configService.get('HOST_API')}/files/project/${sanitizedName}/${file.filename}`;
-    return { secureUrl, fileName: file.filename };
+    // upload to cloudinary
+    try {
+      const publicId = `proyectos/${sanitizedName}/${file.originalname.split('.').slice(0, -1).join('.')}_${Date.now()}`;
+      // lazy import to avoid cycle
+      const { uploadBufferToCloudinary } = require('./cloudinary.helper');
+      const res: any = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+      return { secureUrl: res.secure_url, fileName: res.public_id };
+    } catch (error) {
+      throw new BadRequestException('Error uploading file');
+    }
   }
 }

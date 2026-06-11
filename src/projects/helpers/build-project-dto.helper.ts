@@ -8,8 +8,15 @@ export const buildFolderName = (name: string, marca?: string): string => {
   return marca ? `${sanitize(marca)}_${slug}` : slug;
 };
 
-const toUrl = (hostApi: string, folderName: string, file: Express.Multer.File): string =>
-  `${hostApi}/files/project/${folderName}/${file.filename}`;
+const toUrl = (hostApi: string, folderName: string, file: Express.Multer.File): string | undefined => {
+  // If the file was uploaded to a remote storage (Cloudinary) we expect a `secure_url` or full URL in `file.filename`.
+  if (!file) return undefined;
+  const maybeUrl = (file as any).secure_url ?? file.filename;
+  if (maybeUrl && typeof maybeUrl === 'string' && (maybeUrl.startsWith('http') || maybeUrl.startsWith('https'))) {
+    return maybeUrl;
+  }
+  return `${hostApi}/files/project/${folderName}/${file.filename}`;
+};
 
 const parseJson = (field: any): any => {
   if (!field) return undefined;
