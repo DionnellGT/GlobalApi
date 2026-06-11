@@ -2,6 +2,7 @@ import {
   Controller, Get, Post, Body, Patch, Param,
   Delete, ParseUUIDPipe, Query,
   UseInterceptors, UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { ApiResponse, ApiTags, ApiConsumes } from '@nestjs/swagger';
@@ -36,22 +37,32 @@ export class ProjectsController {
     @UploadedFiles() files: { [fieldname: string]: Express.Multer.File[] },
     @GetUser() user: User,
   ) {
-    // upload files to Cloudinary under folder `proyectos/{projectName}`
+    // La carpeta en Cloudinary será: projects/{marca}_{slug}
+    // Ejemplo: projects/elavellano_parcelas_chiloe
     const folderName = buildFolderName(body.name, body.marca);
-    if (files) {
+    const cloudinaryFolder = `projects/${folderName}`;
+
+    if (files && Object.keys(files).length > 0) {
       for (const field of Object.keys(files)) {
         const arr = files[field];
         for (let i = 0; i < arr.length; i++) {
           const file = arr[i];
           if (!file || !file.buffer) continue;
-          const publicId = `proyectos/${folderName}/${uuid()}`;
+
+          // public_id determina la ruta en Cloudinary
+          // Resultado: projects/elavellano_parcelas_chiloe/{uuid}
+          const publicId = `${cloudinaryFolder}/${uuid()}`;
+
           try {
-            const res: any = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
-            // store cloud url in the file object so buildCreateProjectDto can pick it up
-            arr[i].filename = res.secure_url;
-            (arr[i] as any).secure_url = res.secure_url;
-          } catch (error) {
-            // ignore upload error for now — you may want to handle it upstream
+            const result = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+            // Guardar la URL segura en el objeto file para que buildCreateProjectDto la use
+            arr[i].filename = result.secure_url;
+            (arr[i] as any).secure_url = result.secure_url;
+          } catch (error: any) {
+            // Ahora el error es visible en lugar de ser ignorado silenciosamente
+            throw new BadRequestException(
+              `Error al subir archivo "${file.originalname}" (campo: ${field}): ${error.message}`
+            );
           }
         }
       }
@@ -59,18 +70,18 @@ export class ProjectsController {
 
     const createProjectDto = buildCreateProjectDto(
       body,
-      files,
+      files ?? {},
       this.configService.get('HOST_API'),
     );
 
     return this.ProjectsService.create(createProjectDto, user);
   }
 
-  @Get() 
+  @Get()
   findAll(@Query() paginationDto: PaginationDto) {
     return this.ProjectsService.findAll(paginationDto);
   }
- 
+
   @Get('brand/:marca')
   findByMarca(@Param('marca') marca: Marca) {
     return this.ProjectsService.findByMarca(marca);
