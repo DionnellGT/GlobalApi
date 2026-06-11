@@ -54,7 +54,7 @@ export class ProjectsController {
           const publicId = `${cloudinaryFolder}/${uuid()}`;
 
           try {
-            const result = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+            const result = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId, [folderName]);
             // Guardar la URL segura en el objeto file para que buildCreateProjectDto la use
             arr[i].filename = result.secure_url;
             (arr[i] as any).secure_url = result.secure_url;
