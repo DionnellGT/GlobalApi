@@ -117,7 +117,8 @@ export class ProjectsService {
       .createQueryBuilder('p')
       .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel', 'p.isActive'])
       .where('p.marca = :marca', { marca })
-      .orderBy('p.orden', 'ASC')
+      .orderBy('p.isActive', 'DESC')
+      .addOrderBy('p.orden', 'ASC')
       .addOrderBy('p.name', 'ASC')
       .getMany();
 
