@@ -11,6 +11,11 @@ import { FilesModule } from './files/files.module';
 import { AuthModule } from './auth/auth.module';
 import { MessagesWsModule } from './messages-ws/messages-ws.module';
 import { ProjectsModule } from './projects/proyects.module';
+import { MailModule } from './mail/mail.module';
+import { RecipientsModule } from './recipients/recipients.module';
+import { TemplatesModule } from './templates/templates.module';
+import { CampaignsModule } from './campaigns/campaigns.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 
 @Module({
@@ -40,17 +45,19 @@ import { ProjectsModule } from './projects/proyects.module';
     }),
 
     ProjectsModule,
-
     CommonModule,
-
     SeedModule,
-
     FilesModule,
-
     AuthModule,
-
     MessagesWsModule,
 
+     // ── Módulos MailMasivo ────────────────────────────────────
+    MailModule,
+    RecipientsModule,
+    TemplatesModule,
+    CampaignsModule,
+    DashboardModule,
+  
   ],
 })
 export class AppModule {}
