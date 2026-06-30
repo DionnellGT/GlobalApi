@@ -7,7 +7,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { User } from '../auth/entities/user.entity';
 import { MailService } from '../mail/mail.service';
 import { RecipientsService } from '../recipients/recipients.service';
 import { SendLog, SendStatus } from '../recipients/entities/send-log.entity';
@@ -30,67 +29,58 @@ export class CampaignsService {
     private readonly recipientsService: RecipientsService,
   ) {}
 
-  async create(dto: CreateCampaignDto, user: User): Promise<Campaign> {
-    const campaign = this.campaignRepository.create({ ...dto, user });
+  async create(dto: CreateCampaignDto): Promise<Campaign> {
+    const campaign = this.campaignRepository.create(dto);
     return this.campaignRepository.save(campaign);
   }
 
-  async findAll(user: User): Promise<Campaign[]> {
-    return this.campaignRepository.find({
-      where: { user: { id: user.id } },
-      order: { createdAt: 'DESC' },
-    });
+  async findAll(): Promise<Campaign[]> {
+    return this.campaignRepository.find({ order: { createdAt: 'DESC' } });
   }
 
-  async findOne(id: string, user: User): Promise<Campaign> {
-    const campaign = await this.campaignRepository.findOne({
-      where: { id, user: { id: user.id } },
-    });
+  async findOne(id: string): Promise<Campaign> {
+    const campaign = await this.campaignRepository.findOne({ where: { id } });
     if (!campaign) throw new NotFoundException(`Campaña ${id} no encontrada`);
     return campaign;
   }
 
-  async update(id: string, dto: UpdateCampaignDto, user: User): Promise<Campaign> {
-    const campaign = await this.findOne(id, user);
+  async update(id: string, dto: UpdateCampaignDto): Promise<Campaign> {
+    const campaign = await this.findOne(id);
     if (campaign.status === CampaignStatus.SENDING)
       throw new BadRequestException('No puedes editar una campaña en proceso de envío');
     Object.assign(campaign, dto);
     return this.campaignRepository.save(campaign);
   }
 
-  async remove(id: string, user: User): Promise<void> {
-    const campaign = await this.findOne(id, user);
+  async remove(id: string): Promise<void> {
+    const campaign = await this.findOne(id);
     await this.campaignRepository.remove(campaign);
   }
 
-  async send(id: string, dto: SendCampaignDto, user: User): Promise<Campaign> {
-    const campaign = await this.findOne(id, user);
+  async send(id: string, dto: SendCampaignDto): Promise<Campaign> {
+    const campaign = await this.findOne(id);
 
     if (campaign.status === CampaignStatus.SENDING)
       throw new BadRequestException('Esta campaña ya está en proceso de envío');
-
     if (campaign.status === CampaignStatus.SENT)
       throw new BadRequestException('Esta campaña ya fue enviada. Crea una nueva para reenviar.');
 
-    // Obtener destinatarios
     const recipients = dto.recipientIds?.length
-      ? await this.recipientsService.findByIds(dto.recipientIds, user)
-      : await this.recipientsService.findAllActive(user);
+      ? await this.recipientsService.findByIds(dto.recipientIds)
+      : await this.recipientsService.findAllActive();
 
     if (!recipients.length)
       throw new BadRequestException('No hay destinatarios activos para enviar la campaña');
 
-    // Marcar como enviando
-    campaign.status           = CampaignStatus.SENDING;
-    campaign.totalRecipients  = recipients.length;
-    campaign.sentCount        = 0;
-    campaign.failedCount      = 0;
+    campaign.status          = CampaignStatus.SENDING;
+    campaign.totalRecipients = recipients.length;
+    campaign.sentCount       = 0;
+    campaign.failedCount     = 0;
     await this.campaignRepository.save(campaign);
 
-    let sentCount   = 0;
+    let sentCount = 0;
     let failedCount = 0;
 
-    // Envío secuencial con delay para respetar rate limits de Resend (2 req/s en free tier)
     for (const recipient of recipients) {
       const variables: Record<string, string> = {
         nombre:  recipient.name,
@@ -103,37 +93,24 @@ export class CampaignsService {
       const body    = this.mailService.interpolate(campaign.body, variables);
       const html    = this.mailService.textToHtml(body);
 
-      const result = await this.mailService.sendEmail({
-        to:      recipient.email,
-        subject,
-        html,
-      });
+      const result = await this.mailService.sendEmail({ to: recipient.email, subject, html });
 
-      const logStatus = result.error ? SendStatus.FAILED : SendStatus.SENT;
-
-      if (result.error) {
-        failedCount++;
-        this.logger.warn(`Fallo al enviar a ${recipient.email}: ${result.error}`);
-      } else {
-        sentCount++;
-      }
-
-      // Guardar log individual
       const log = this.sendLogRepository.create({
         campaign,
         recipient,
         email:    recipient.email,
-        status:   logStatus,
+        status:   result.error ? SendStatus.FAILED : SendStatus.SENT,
         error:    result.error ?? null,
-        resendId: result.id   ?? null,
+        resendId: result.id    ?? null,
       });
       await this.sendLogRepository.save(log);
 
-      // Delay de 600ms entre envíos (~1.6 req/s, bajo el límite de Resend free)
+      result.error ? failedCount++ : sentCount++;
+
+      // delay 600ms para respetar rate limit de Resend
       await new Promise((r) => setTimeout(r, 600));
     }
 
-    // Marcar campaña como completada
     campaign.status      = CampaignStatus.SENT;
     campaign.sentCount   = sentCount;
     campaign.failedCount = failedCount;
@@ -141,40 +118,36 @@ export class CampaignsService {
     return this.campaignRepository.save(campaign);
   }
 
-  async getLogs(id: string, user: User): Promise<SendLog[]> {
-    await this.findOne(id, user); // verifica ownership
+  async getLogs(id: string): Promise<SendLog[]> {
+    await this.findOne(id);
     return this.sendLogRepository.find({
-      where: { campaign: { id } },
+      where:     { campaign: { id } },
       relations: ['recipient'],
-      order: { sentAt: 'DESC' },
+      order:     { sentAt: 'DESC' },
     });
   }
 
-  async getDashboardMetrics(user: User) {
-    const campaigns = await this.campaignRepository.find({
-      where: { user: { id: user.id } },
-    });
-
+  async getDashboardMetrics() {
+    const campaigns = await this.campaignRepository.find();
     const totalSent      = campaigns.reduce((acc, c) => acc + c.sentCount, 0);
     const totalCampaigns = campaigns.length;
     const sentCampaigns  = campaigns.filter((c) => c.status === CampaignStatus.SENT);
 
-    const avgDeliveryRate =
-      sentCampaigns.length > 0
-        ? Math.round(
-            sentCampaigns.reduce(
-              (acc, c) => acc + (c.totalRecipients > 0 ? (c.sentCount / c.totalRecipients) * 100 : 0),
-              0,
-            ) / sentCampaigns.length,
-          )
-        : 0;
+    const avgDeliveryRate = sentCampaigns.length > 0
+      ? Math.round(
+          sentCampaigns.reduce(
+            (acc, c) => acc + (c.totalRecipients > 0 ? (c.sentCount / c.totalRecipients) * 100 : 0),
+            0,
+          ) / sentCampaigns.length,
+        )
+      : 0;
 
     return {
       totalSent,
       totalCampaigns,
-      avgOpenRate:      0, // requiere tracking de pixel (fase 2)
+      avgOpenRate:     0,
       avgDeliveryRate,
-      recentCampaigns:  campaigns.slice(0, 5),
+      recentCampaigns: campaigns.slice(0, 5),
     };
   }
 }
