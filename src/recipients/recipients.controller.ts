@@ -38,6 +38,12 @@ export class RecipientsController {
     return this.recipientsService.update(id, dto);
   }
 
+  @Delete()
+  @ApiOperation({ summary: 'Eliminar todos los destinatarios' })
+  removeAll() {
+    return this.recipientsService.removeAll();
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Eliminar un destinatario' })
   remove(@Param('id', ParseUUIDPipe) id: string) {
