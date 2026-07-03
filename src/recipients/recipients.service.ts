@@ -67,7 +67,7 @@ export class RecipientsService {
 
   async removeAll(): Promise<{ deleted: number }> {
     const count = await this.recipientRepository.count();
-    await this.recipientRepository.delete({});
+    await this.recipientRepository.delete({ isActive: true });
     return { deleted: count };
   }
 
