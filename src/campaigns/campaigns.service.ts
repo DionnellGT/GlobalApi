@@ -11,6 +11,7 @@ import { MailService } from '../mail/mail.service';
 import { RecipientsService } from '../recipients/recipients.service';
 import { SendLog, SendStatus } from '../recipients/entities/send-log.entity';
 import { Campaign, CampaignStatus } from './entities/campaign.entity';
+import { Template } from '../templates/entities/template.entity';
 import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
 import { SendCampaignDto } from '../recipients/dto/recipient.dto';
 
@@ -24,6 +25,9 @@ export class CampaignsService {
 
     @InjectRepository(SendLog)
     private readonly sendLogRepository: Repository<SendLog>,
+
+    @InjectRepository(Template)
+    private readonly templateRepository: Repository<Template>,
 
     private readonly mailService: MailService,
     private readonly recipientsService: RecipientsService,
@@ -64,6 +68,18 @@ export class CampaignsService {
       throw new BadRequestException('Esta campaña ya está en proceso de envío');
     if (campaign.status === CampaignStatus.SENT)
       throw new BadRequestException('Esta campaña ya fue enviada. Crea una nueva para reenviar.');
+
+    // Si la campaña tiene plantilla, usarla como base para subject/body
+    // Los valores propios de la campaña tienen prioridad sobre la plantilla
+    if (campaign.templateId) {
+      const template = await this.templateRepository.findOne({
+        where: { id: campaign.templateId },
+      });
+      if (template) {
+        if (!campaign.subject) campaign.subject = template.subject;
+        if (!campaign.body)    campaign.body    = template.body;
+      }
+    }
 
     const recipients = dto.recipientIds?.length
       ? await this.recipientsService.findByIds(dto.recipientIds)
