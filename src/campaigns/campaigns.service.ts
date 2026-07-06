@@ -107,7 +107,11 @@ export class CampaignsService {
 
       const subject = this.mailService.interpolate(campaign.subject, variables);
       const body    = this.mailService.interpolate(campaign.body, variables);
-      const html    = this.mailService.textToHtml(body);
+      // Si el body ya es HTML (viene del editor Tiptap) lo usamos directo,
+      // si es texto plano lo convertimos
+      const html = body.trimStart().startsWith('<')
+        ? body
+        : this.mailService.textToHtml(body);
 
       const result = await this.mailService.sendEmail({ to: recipient.email, subject, html });
 
