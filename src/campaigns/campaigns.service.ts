@@ -113,7 +113,12 @@ export class CampaignsService {
         ? body
         : this.mailService.textToHtml(body);
 
-      const result = await this.mailService.sendEmail({ to: recipient.email, subject, html });
+      const result = await this.mailService.sendEmail({
+        to:          recipient.email,
+        subject,
+        html,
+        attachments: dto.attachments,
+      });
 
       const log = this.sendLogRepository.create({
         campaign,

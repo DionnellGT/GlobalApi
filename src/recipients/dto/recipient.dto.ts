@@ -48,4 +48,13 @@ export class SendCampaignDto {
   @IsArray()
   @IsString({ each: true })
   recipientIds?: string[];
+
+  @ApiProperty({
+    description: 'Adjuntos a incluir en el email',
+    required: false,
+    type: 'array',
+  })
+  @IsOptional()
+  @IsArray()
+  attachments?: { filename: string; content: string; contentType: string }[];
 }
