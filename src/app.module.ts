@@ -9,6 +9,8 @@ import { RecipientsModule } from './recipients/recipients.module';
 import { TemplatesModule }  from './templates/templates.module';
 import { CampaignsModule }  from './campaigns/campaigns.module';
 import { DashboardModule }  from './dashboard/dashboard.module';
+import { WebhooksModule }   from './webhooks/webhooks.module';
+
 
 @Module({
   imports: [
@@ -38,6 +40,7 @@ import { DashboardModule }  from './dashboard/dashboard.module';
     TemplatesModule,
     CampaignsModule,
     DashboardModule,
+    WebhooksModule,
   ],
 })
 export class AppModule {}
