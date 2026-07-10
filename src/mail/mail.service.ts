@@ -44,7 +44,7 @@ export class MailService {
         attachments: options.attachments?.map((a) => ({
           filename:    a.filename,
           content:     a.content,
-          content_type: a.contentType,
+          contentType: a.contentType,
         })),
       });
 

@@ -6,7 +6,9 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateRecipientDto {
   @ApiProperty({ example: 'Juan García' })
@@ -38,6 +40,20 @@ export class ImportRecipientsDto {
   recipients: CreateRecipientDto[];
 }
 
+export class AttachmentDto {
+  @ApiProperty({ example: 'documento.pdf' })
+  @IsString()
+  filename: string;
+
+  @ApiProperty({ description: 'Contenido del archivo en base64' })
+  @IsString()
+  content: string;
+
+  @ApiProperty({ example: 'application/pdf' })
+  @IsString()
+  contentType: string;
+}
+
 export class SendCampaignDto {
   @ApiProperty({
     description: 'Lista de IDs de destinatarios. Si está vacío, se usan todos los activos.',
@@ -52,9 +68,11 @@ export class SendCampaignDto {
   @ApiProperty({
     description: 'Adjuntos a incluir en el email',
     required: false,
-    type: 'array',
+    type: [AttachmentDto],
   })
   @IsOptional()
   @IsArray()
-  attachments?: { filename: string; content: string; contentType: string }[];
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[];
 }
