@@ -153,7 +153,9 @@ export class CampaignsService {
   }
 
   async getDashboardMetrics() {
-    const campaigns = await this.campaignRepository.find();
+    const campaigns = await this.campaignRepository.find({
+      order: { createdAt: 'DESC' },
+    });
     const totalSent      = campaigns.reduce((acc, c) => acc + c.sentCount, 0);
     const totalCampaigns = campaigns.length;
     const sentCampaigns  = campaigns.filter((c) => c.status === CampaignStatus.SENT);
