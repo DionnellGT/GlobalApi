@@ -1,6 +1,3 @@
-// Polyfill de fetch para Node 17 usando node-fetch v2
-// Debe ir antes de cualquier otro import para que esté disponible
-// cuando el SDK de OpenAI se inicialice
 import fetch, { Headers, Request, Response } from 'node-fetch';
 
 if (!globalThis.fetch) {
@@ -13,6 +10,7 @@ if (!globalThis.fetch) {
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import * as express from 'express';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
@@ -21,6 +19,12 @@ async function bootstrap() {
 
   app.setGlobalPrefix('api');
   app.enableCors();
+
+  // Aumentar límite a 50MB para soportar adjuntos en base64
+  // El límite por defecto de NestJS/Express es 100KB — insuficiente para PDFs
+  const expressApp = app.getHttpAdapter().getInstance();
+  expressApp.use(express.json({ limit: '50mb' }));
+  expressApp.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   app.useGlobalPipes(
     new ValidationPipe({
