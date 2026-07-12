@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
+import { ConfigService } from '@nestjs/config';
 import { MailService } from '../mail/mail.service';
 import { RecipientsService } from '../recipients/recipients.service';
 import { SendLog, SendStatus } from '../recipients/entities/send-log.entity';
@@ -31,6 +32,7 @@ export class CampaignsService {
 
     private readonly mailService: MailService,
     private readonly recipientsService: RecipientsService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(dto: CreateCampaignDto): Promise<Campaign> {
@@ -113,21 +115,36 @@ export class CampaignsService {
         ? body
         : this.mailService.textToHtml(body);
 
-      const result = await this.mailService.sendEmail({
-        to:          recipient.email,
-        subject,
-        html,
-        attachments: dto.attachments,
-      });
-
+      // Crear el log primero para obtener su ID (necesario para el pixel de tracking)
       const log = this.sendLogRepository.create({
         campaign,
         recipient,
         email:    recipient.email,
-        status:   result.error ? SendStatus.FAILED : SendStatus.SENT,
-        error:    result.error ?? null,
-        resendId: result.id    ?? null,
+        status:   SendStatus.SENT, // se actualiza abajo si falla
+        error:    null,
+        resendId: null,
+        openCount: 0,
       });
+      await this.sendLogRepository.save(log);
+
+      // Inyectar pixel de tracking en el HTML
+      const baseUrl      = this.configService.get<string>('API_URL') ?? '';
+      const trackingPixel = baseUrl
+        ? `<img src="${baseUrl}/track/open/${log.id}" width="1" height="1" style="display:none" />`
+        : '';
+      const htmlWithPixel = html + trackingPixel;
+
+      const result = await this.mailService.sendEmail({
+        to:          recipient.email,
+        subject,
+        html:        htmlWithPixel,
+        attachments: dto.attachments,
+      });
+
+      // Actualizar log con resultado del envío
+      log.status   = result.error ? SendStatus.FAILED : SendStatus.SENT;
+      log.error    = result.error ?? null;
+      log.resendId = result.id    ?? null;
       await this.sendLogRepository.save(log);
 
       result.error ? failedCount++ : sentCount++;
@@ -169,10 +186,19 @@ export class CampaignsService {
         )
       : 0;
 
+    const avgOpenRate = sentCampaigns.length > 0
+      ? Math.round(
+          sentCampaigns.reduce(
+            (acc, c) => acc + (c.sentCount > 0 ? (c.openedCount / c.sentCount) * 100 : 0),
+            0,
+          ) / sentCampaigns.length,
+        )
+      : 0;
+
     return {
       totalSent,
       totalCampaigns,
-      avgOpenRate:     0,
+      avgOpenRate,
       avgDeliveryRate,
       recentCampaigns: campaigns.slice(0, 5),
     };

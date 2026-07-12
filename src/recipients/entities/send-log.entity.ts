@@ -16,5 +16,7 @@ export class SendLog {
   @Column({ type: 'enum', enum: SendStatus }) status: SendStatus;
   @Column('text', { nullable: true }) error: string;
   @Column('text', { nullable: true }) resendId: string;
+  @Column({ type: 'timestamp', nullable: true }) openedAt: Date;
+  @Column('int', { default: 0 }) openCount: number;
   @CreateDateColumn() sentAt: Date;
 }
