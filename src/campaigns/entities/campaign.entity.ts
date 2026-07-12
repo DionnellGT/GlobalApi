@@ -19,6 +19,7 @@ export class Campaign {
   @Column('int', { default: 0 }) totalRecipients: number;
   @Column('int', { default: 0 }) sentCount: number;
   @Column('int', { default: 0 }) failedCount: number;
+  @Column('int', { default: 0 }) openedCount: number;
   @Column({ type: 'timestamp', nullable: true }) sentAt: Date;
   @OneToMany(() => SendLog, (log) => log.campaign, { cascade: true }) sendLogs: SendLog[];
   @CreateDateColumn() createdAt: Date;
