@@ -54,9 +54,10 @@ export class MailService {
       }
 
       return { id: data.id };
-    } catch (err) {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error desconocido';
       this.logger.error(`Excepción enviando a ${options.to}`, err);
-      return { error: err.message ?? 'Error desconocido' };
+      return { error: message };
     }
   }
 
