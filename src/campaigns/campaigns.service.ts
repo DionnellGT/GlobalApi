@@ -128,16 +128,26 @@ export class CampaignsService {
       await this.sendLogRepository.save(log);
 
       // Inyectar pixel de tracking en el HTML
-      const baseUrl      = this.configService.get<string>('API_URL') ?? '';
+      const baseUrl      = this.configService.get<string>('API_BASE_URL') ?? '';
       const trackingPixel = baseUrl
-        ? `<img src="${baseUrl}/track/open/${log.id}" width="1" height="1" style="display:none" />`
+        ? `<img src="${baseUrl}/api/track/open/${log.id}" width="1" height="1" style="display:none" />`
         : '';
       const htmlWithPixel = html + trackingPixel;
+
+      // Construir el remitente según el dominio elegido
+      // Formato: "Nombre <alias@dominio.cl>"
+      const fromName   = campaign.fromName   ?? 'MailMasivo';
+      const fromDomain = campaign.fromDomain ?? 'elavellano.cl';
+      const fromAlias  = fromName.toLowerCase().replace(/\s+/g, '');
+      const fromEmail  = `${fromAlias}@${fromDomain}`;
+      const from       = `${fromName} <${fromEmail}>`;
 
       const result = await this.mailService.sendEmail({
         to:          recipient.email,
         subject,
         html:        htmlWithPixel,
+        from,
+        domain:      fromDomain,
         attachments: dto.attachments,
       });
 

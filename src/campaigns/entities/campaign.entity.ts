@@ -14,6 +14,8 @@ export class Campaign {
   @Column('text') name: string;
   @Column('text') subject: string;
   @Column('text') body: string;
+  @Column('text', { nullable: true }) fromName: string;
+  @Column('text', { nullable: true }) fromDomain: string;
   @Column({ type: 'enum', enum: CampaignStatus, default: CampaignStatus.DRAFT }) status: CampaignStatus;
   @Column('text', { nullable: true }) templateId: string;
   @Column('int', { default: 0 }) totalRecipients: number;
