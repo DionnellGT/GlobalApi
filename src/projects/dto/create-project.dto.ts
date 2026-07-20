@@ -29,6 +29,12 @@ export class CreateProjectDto {
   @MinLength(1)
   name: string;
 
+  @ApiProperty({ description: 'Precio desde', required: false, default: 0 })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  preciosDesde?: string;
+
   @ApiProperty({ description: 'Orden de visualización', required: false, default: 0 })
   @IsInt()
   @Min(0)

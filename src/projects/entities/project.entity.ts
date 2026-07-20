@@ -29,6 +29,9 @@ export class Project {
   name: string;
 
   @Column('text', { nullable: true })
+  preciosDesde: string;
+
+  @Column('text', { nullable: true })
   imageCarrousel: string;
 
   @Column('text', { nullable: true })
