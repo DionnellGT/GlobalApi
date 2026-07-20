@@ -115,7 +115,7 @@ export class ProjectsService {
   async findByMarca(marca: Marca) {
     const projects = await this.projectRepository
       .createQueryBuilder('p')
-      .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel', 'p.isActive'])
+      .select(['p.id', 'p.marca', 'p.name', 'p.idSlug', 'p.imageCarrousel', 'p.isActive', 'p.preciosDesde', 'p.orden'])
       .where('p.marca = :marca', { marca })
       .orderBy('p.isActive', 'DESC')
       .addOrderBy('p.orden', 'ASC')
