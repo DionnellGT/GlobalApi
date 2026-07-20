@@ -8,7 +8,7 @@ import { validate as isUUID } from 'uuid';
 
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
-import { PaginationDto } from 'src/common/dtos/pagination.dto';
+import { PaginationDto } from '../common/dtos/pagination.dto';
 import { Project } from './entities/project.entity';
 import { CentroUrbano } from './entities/centro-urbano.entity';
 import { AtraccionTuristica } from './entities/atraccion-turistica.entity';
