@@ -35,6 +35,9 @@ export class Project {
   badgeColor: string;
 
   @Column('text', { nullable: true })
+  badgeLabel: string;
+
+  @Column('text', { nullable: true })
   imageCarrousel: string;
 
   @Column('text', { nullable: true })
