@@ -34,10 +34,17 @@ export class CreateProjectDto {
   @Min(0)
   @IsOptional()
   preciosDesde?: string;
+
   @ApiProperty({ description: 'Color del badge', required: false })
   @IsString()
   @IsOptional()
   badgeColor?: string;
+
+  @ApiProperty({ description: 'Etiqueta del badge', required: false })
+  @IsString()
+  @IsOptional()
+  badgeLabel?: string;
+
 
   @ApiProperty({ description: 'Orden de visualización', required: false, default: 0 })
   @IsInt()
