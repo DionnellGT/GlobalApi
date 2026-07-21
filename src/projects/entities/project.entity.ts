@@ -30,6 +30,9 @@ export class Project {
 
   @Column('text', { nullable: true })
   preciosDesde: string;
+  
+  @Column('text', { nullable: true })
+  badgeColor: string;
 
   @Column('text', { nullable: true })
   imageCarrousel: string;
