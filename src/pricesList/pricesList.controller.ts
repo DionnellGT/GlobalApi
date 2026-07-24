@@ -5,7 +5,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 
 import { PricesListService } from './pricesList.service';
-import { CreatePriceListDto, UpdatePriceListDto, UpdateLotDto } from './dto';
+import { CreatePriceListDto, UpdatePriceListDto, UpdateLotDto, AddLotsDto } from './dto';
 import { Auth } from '../auth/decorators';
 import { ValidRoles } from '../auth/interfaces';
 import { Marca } from '../projects/enums';
@@ -45,6 +45,16 @@ export class PricesListController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.pricesListService.findOne(id);
+  }
+
+  // Agrega uno o más lotes nuevos a una lista existente (sin borrar los actuales)
+  @Post(':id/lot')
+  @Auth(ValidRoles.admin)
+  addLots(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() addLotsDto: AddLotsDto,
+  ) {
+    return this.pricesListService.addLots(id, addLotsDto);
   }
 
   // Edita un lote puntual según su id

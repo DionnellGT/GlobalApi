@@ -5,7 +5,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
-import { CreatePriceListDto, UpdatePriceListDto, UpdateLotDto } from './dto';
+import { CreatePriceListDto, UpdatePriceListDto, UpdateLotDto, AddLotsDto } from './dto';
 import { PriceList } from './entities/price-list.entity';
 import { Lot } from './entities/lot.entity';
 import { Marca } from '../projects/enums';
@@ -112,6 +112,22 @@ export class PricesListService {
       this.handleDBExceptions(error);
     } finally {
       await queryRunner.release();
+    }
+  }
+
+  // Agrega uno o más lotes nuevos a una lista existente, sin tocar los que ya tiene
+  async addLots(id: string, addLotsDto: AddLotsDto) {
+    const priceList = await this.findOne(id);
+
+    try {
+      const newLots = addLotsDto.lots.map((lot) =>
+        this.lotRepository.create({ ...lot, list: priceList }),
+      );
+
+      await this.lotRepository.save(newLots);
+      return this.findOne(id);
+    } catch (error) {
+      this.handleDBExceptions(error);
     }
   }
 
