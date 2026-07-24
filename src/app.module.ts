@@ -11,6 +11,7 @@ import { CampaignsModule }  from './campaigns/campaigns.module';
 import { DashboardModule }  from './dashboard/dashboard.module';
 import { WebhooksModule }  from './webhooks/webhooks.module';
 import { TrackingModule }  from './tracking/tracking.module';
+import { PricesListModule } from './pricesList/pricesList.module';
 
 
 @Module({
@@ -35,6 +36,7 @@ import { TrackingModule }  from './tracking/tracking.module';
     // módulos existentes — no se tocan
     AuthModule,
     ProjectsModule,
+    PricesListModule,
     // MailMasivo — sin @Auth(), sin filtro por usuario
     MailModule,
     RecipientsModule,
