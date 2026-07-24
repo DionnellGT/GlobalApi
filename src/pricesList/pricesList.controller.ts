@@ -17,7 +17,7 @@ export class PricesListController {
   constructor(private readonly pricesListService: PricesListService) {}
 
   @Post()
-  @Auth()
+  //@Auth()
   create(@Body() createPriceListDto: CreatePriceListDto) {
     return this.pricesListService.create(createPriceListDto);
   }
@@ -49,7 +49,7 @@ export class PricesListController {
 
   // Agrega uno o más lotes nuevos a una lista existente (sin borrar los actuales)
   @Post(':id/lot')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   addLots(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() addLotsDto: AddLotsDto,
@@ -59,7 +59,7 @@ export class PricesListController {
 
   // Edita un lote puntual según su id
   @Patch('lot/:lotId')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   updateLot(
     @Param('lotId', ParseUUIDPipe) lotId: string,
     @Body() updateLotDto: UpdateLotDto,
@@ -69,7 +69,7 @@ export class PricesListController {
 
   // Edita una lista completa según su id
   @Patch(':id')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   updateList(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePriceListDto: UpdatePriceListDto,
@@ -79,7 +79,7 @@ export class PricesListController {
 
   // Elimina todas las listas de una marca y tipo determinados
   @Delete('brand/:marca/:tipo')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   removeAllByMarcaAndTipo(
     @Param('marca') marca: Marca,
     @Param('tipo') tipo: TipoLista,
@@ -89,14 +89,14 @@ export class PricesListController {
 
   // Elimina un lote puntual según su id
   @Delete('lot/:lotId')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   removeLot(@Param('lotId', ParseUUIDPipe) lotId: string) {
     return this.pricesListService.removeLot(lotId);
   }
 
   // Elimina una lista completa (y sus lotes) según su id
   @Delete(':id')
-  @Auth(ValidRoles.admin)
+  //@Auth(ValidRoles.admin)
   removeList(@Param('id', ParseUUIDPipe) id: string) {
     return this.pricesListService.removeList(id);
   }
