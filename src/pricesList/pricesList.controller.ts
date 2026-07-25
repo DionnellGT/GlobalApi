@@ -1,8 +1,10 @@
 import {
   Controller, Get, Post, Body, Patch, Param,
-  Delete, ParseUUIDPipe,
+  Delete, ParseUUIDPipe, UseInterceptors, UploadedFile, BadRequestException,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { ApiBody, ApiConsumes, ApiTags } from '@nestjs/swagger';
 
 import { PricesListService } from './pricesList.service';
 import { CreatePriceListDto, UpdatePriceListDto, UpdateLotDto, AddLotsDto } from './dto';
@@ -10,6 +12,9 @@ import { Auth } from '../auth/decorators';
 import { ValidRoles } from '../auth/interfaces';
 import { Marca } from '../projects/enums';
 import { TipoLista } from './enums';
+import {
+  BROCHURES_DIR, brochureFileName, ensureBrochuresDir, isValidMarca, isValidTipo,
+} from './utils/brochure-storage.util';
 
 @ApiTags('PriceList')
 @Controller('price-list')
@@ -17,7 +22,7 @@ export class PricesListController {
   constructor(private readonly pricesListService: PricesListService) {}
 
   @Post()
-  //@Auth()
+  @Auth()
   create(@Body() createPriceListDto: CreatePriceListDto) {
     return this.pricesListService.create(createPriceListDto);
   }
@@ -42,6 +47,63 @@ export class PricesListController {
     return this.pricesListService.findByMarcaAndTipo(marca, tipo);
   }
 
+  // Info del PDF de brochure vigente para una marca + tipo (si existe)
+  @Get('brand/:marca/:tipo/brochure')
+  getBrochureInfo(
+    @Param('marca') marca: Marca,
+    @Param('tipo') tipo: TipoLista,
+  ) {
+    return this.pricesListService.getBrochureInfo(marca, tipo);
+  }
+
+  // Sube (o reemplaza, si ya existía uno) el PDF de brochure de una marca + tipo.
+  // Se guarda en disco con nombre determinístico ("marca-tipo.pdf"), así que
+  // volver a subir uno simplemente sobrescribe al anterior.
+  @Post('brand/:marca/:tipo/brochure')
+  @Auth(ValidRoles.admin)
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: (req, _file, callback) => {
+          const { marca, tipo } = req.params as { marca: string; tipo: string };
+          // Los callbacks de Multer corren ANTES de los pipes de Nest, así
+          // que acá se valida a mano (ver comentario en brochure-storage.util.ts).
+          if (!isValidMarca(marca) || !isValidTipo(tipo)) {
+            callback(new BadRequestException('Marca o tipo inválidos'), '');
+            return;
+          }
+          ensureBrochuresDir();
+          callback(null, BROCHURES_DIR);
+        },
+        filename: (req, _file, callback) => {
+          const { marca, tipo } = req.params as unknown as { marca: Marca; tipo: TipoLista };
+          callback(null, brochureFileName(marca, tipo));
+        },
+      }),
+      fileFilter: (_req, file, callback) => {
+        callback(null, file.mimetype === 'application/pdf');
+      },
+      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+    }),
+  )
+  uploadBrochure(
+    @Param('marca') marca: Marca,
+    @Param('tipo') tipo: TipoLista,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debes adjuntar un archivo PDF válido en el campo "file"');
+    }
+    return this.pricesListService.getBrochureInfo(marca, tipo);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.pricesListService.findOne(id);
@@ -49,7 +111,7 @@ export class PricesListController {
 
   // Agrega uno o más lotes nuevos a una lista existente (sin borrar los actuales)
   @Post(':id/lot')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   addLots(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() addLotsDto: AddLotsDto,
@@ -59,7 +121,7 @@ export class PricesListController {
 
   // Edita un lote puntual según su id
   @Patch('lot/:lotId')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   updateLot(
     @Param('lotId', ParseUUIDPipe) lotId: string,
     @Body() updateLotDto: UpdateLotDto,
@@ -69,7 +131,7 @@ export class PricesListController {
 
   // Edita una lista completa según su id
   @Patch(':id')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   updateList(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePriceListDto: UpdatePriceListDto,
@@ -79,7 +141,7 @@ export class PricesListController {
 
   // Elimina todas las listas de una marca y tipo determinados
   @Delete('brand/:marca/:tipo')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   removeAllByMarcaAndTipo(
     @Param('marca') marca: Marca,
     @Param('tipo') tipo: TipoLista,
@@ -89,14 +151,14 @@ export class PricesListController {
 
   // Elimina un lote puntual según su id
   @Delete('lot/:lotId')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   removeLot(@Param('lotId', ParseUUIDPipe) lotId: string) {
     return this.pricesListService.removeLot(lotId);
   }
 
   // Elimina una lista completa (y sus lotes) según su id
   @Delete(':id')
-  //@Auth(ValidRoles.admin)
+  @Auth(ValidRoles.admin)
   removeList(@Param('id', ParseUUIDPipe) id: string) {
     return this.pricesListService.removeList(id);
   }

@@ -1,9 +1,12 @@
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ServeStaticModule } from '@nestjs/serve-static';
 
 import { AuthModule }       from './auth/auth.module';
 import { ProjectsModule }   from './projects/proyects.module';
+import { PricesListModule } from './pricesList/pricesList.module';
 import { MailModule }       from './mail/mail.module';
 import { RecipientsModule } from './recipients/recipients.module';
 import { TemplatesModule }  from './templates/templates.module';
@@ -11,7 +14,6 @@ import { CampaignsModule }  from './campaigns/campaigns.module';
 import { DashboardModule }  from './dashboard/dashboard.module';
 import { WebhooksModule }  from './webhooks/webhooks.module';
 import { TrackingModule }  from './tracking/tracking.module';
-import { PricesListModule } from './pricesList/pricesList.module';
 
 
 @Module({
@@ -32,6 +34,13 @@ import { PricesListModule } from './pricesList/pricesList.module';
       password:         process.env.DB_PASSWORD,
       autoLoadEntities: true,
       synchronize:      true,
+    }),
+    // Sirve ./uploads como archivos estáticos en /uploads (ej: PDFs de
+    // brochure). OJO: el prefijo global "api" NO se aplica acá (ver
+    // pricesList/utils/brochure-storage.util.ts), queda en /uploads/...
+    ServeStaticModule.forRoot({
+      rootPath: join(process.cwd(), 'uploads'),
+      serveRoot: '/uploads',
     }),
     // módulos existentes — no se tocan
     AuthModule,

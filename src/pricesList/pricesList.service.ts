@@ -1,3 +1,4 @@
+import { existsSync, statSync } from 'fs';
 import {
   BadRequestException, Injectable, InternalServerErrorException,
   Logger, NotFoundException,
@@ -10,6 +11,7 @@ import { PriceList } from './entities/price-list.entity';
 import { Lot } from './entities/lot.entity';
 import { Marca } from '../projects/enums';
 import { TipoLista } from './enums';
+import { brochureFilePath, brochurePublicUrl } from './utils/brochure-storage.util';
 
 @Injectable()
 export class PricesListService {
@@ -184,6 +186,20 @@ export class PricesListService {
     } catch (error) {
       this.handleDBExceptions(error);
     }
+  }
+
+  // Info del PDF de brochure vigente para una marca + tipo (si existe)
+  getBrochureInfo(marca: Marca, tipo: TipoLista) {
+    const filePath = brochureFilePath(marca, tipo);
+    const exists = existsSync(filePath);
+
+    return {
+      marca,
+      tipo,
+      exists,
+      url: exists ? brochurePublicUrl(marca, tipo) : null,
+      updatedAt: exists ? statSync(filePath).mtime : null,
+    };
   }
 
   private handleDBExceptions(error: any) {
