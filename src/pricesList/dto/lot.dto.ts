@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class LotDto {
 
@@ -17,15 +17,17 @@ export class LotDto {
   @Min(0)
   area: number;
 
-  @ApiProperty({ description: 'Precio de lista' })
+  @ApiProperty({ required: false, description: 'Precio de lista (opcional)' })
   @IsInt()
   @Min(0)
-  priceList: number;
+  @IsOptional()
+  priceList?: number;
 
-  @ApiProperty({ description: 'Precio con pie + cuotas' })
+  @ApiProperty({ required: false, description: 'Precio con pie + cuotas (opcional)' })
   @IsInt()
   @Min(0)
-  installmentPrice: number;
+  @IsOptional()
+  installmentPrice?: number;
 
   @ApiProperty({ description: 'Precio al contado' })
   @IsInt()

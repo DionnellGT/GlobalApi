@@ -20,13 +20,13 @@ export class Lot {
   @Column('int')
   area: number;
 
-  @ApiProperty({ description: 'Precio de lista' })
-  @Column('int')
-  priceList: number;
+  @ApiProperty({ required: false, description: 'Precio de lista (opcional)' })
+  @Column('int', { nullable: true })
+  priceList: number | null;
 
-  @ApiProperty({ description: 'Precio con pie + cuotas' })
-  @Column('int')
-  installmentPrice: number;
+  @ApiProperty({ required: false, description: 'Precio con pie + cuotas (opcional)' })
+  @Column('int', { nullable: true })
+  installmentPrice: number | null;
 
   @ApiProperty({ description: 'Precio al contado' })
   @Column('int')
