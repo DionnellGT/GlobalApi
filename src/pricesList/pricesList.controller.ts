@@ -87,10 +87,17 @@ export class PricesListController {
           callback(null, brochureFileName(marca, tipo));
         },
       }),
+      // Algunos navegadores/SO reportan un mimetype distinto a
+      // "application/pdf" para PDFs válidos (ej. "application/octet-stream"
+      // si el archivo viene de ciertas fuentes/nubes). Por eso también se
+      // acepta por extensión ".pdf" como respaldo, en vez de rechazar solo
+      // por mimetype.
       fileFilter: (_req, file, callback) => {
-        callback(null, file.mimetype === 'application/pdf');
+        const isPdfMimetype = file.mimetype === 'application/pdf';
+        const isPdfExtension = file.originalname.toLowerCase().endsWith('.pdf');
+        callback(null, isPdfMimetype || isPdfExtension);
       },
-      limits: { fileSize: 20 * 1024 * 1024 }, // 20MB
+      limits: { fileSize: 30 * 1024 * 1024 }, // 30MB
     }),
   )
   uploadBrochure(
@@ -99,7 +106,10 @@ export class PricesListController {
     @UploadedFile() file: Express.Multer.File,
   ) {
     if (!file) {
-      throw new BadRequestException('Debes adjuntar un archivo PDF válido en el campo "file"');
+      throw new BadRequestException(
+        'El archivo no se subió: o no se adjuntó ninguno, o no es un PDF válido, ' +
+        'o supera el tamaño máximo permitido (30MB).',
+      );
     }
     return this.pricesListService.getBrochureInfo(marca, tipo);
   }
