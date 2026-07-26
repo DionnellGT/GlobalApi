@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'fs';
+import { existsSync, statSync, unlinkSync } from 'fs';
 import {
   BadRequestException, Injectable, InternalServerErrorException,
   Logger, NotFoundException,
@@ -199,6 +199,28 @@ export class PricesListService {
       exists,
       url: exists ? brochurePublicUrl(marca, tipo) : null,
       updatedAt: exists ? statSync(filePath).mtime : null,
+    };
+  }
+
+  // Elimina el PDF de brochure de una marca + tipo (si existe)
+  removeBrochure(marca: Marca, tipo: TipoLista) {
+    const filePath = brochureFilePath(marca, tipo);
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException(
+        `No hay ningún PDF de brochure cargado para la marca "${marca}" y tipo "${tipo}"`,
+      );
+    }
+
+    unlinkSync(filePath);
+
+    return {
+      marca,
+      tipo,
+      exists: false,
+      url: null,
+      updatedAt: null,
+      message: 'PDF de brochure eliminado correctamente',
     };
   }
 
