@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 import { RawHeaders, GetUser, Auth } from './decorators';
 import { RoleProtected } from './decorators/role-protected.decorator';
 
-import { CreateUserDto, LoginUserDto } from './dto';
+import { CreateUserDto, LoginUserDto, RegisterWithRoleDto } from './dto';
 import { User } from './entities/user.entity';
 import { UserRoleGuard } from './guards/user-role.guard';
 import { ValidRoles } from './interfaces';
@@ -24,6 +24,18 @@ export class AuthController {
   @Post('register')
   createUser(@Body() createUserDto: CreateUserDto ) {
     return this.authService.create( createUserDto );
+  }
+
+  @Post('register/leads')
+  @ApiOperation({
+    summary: 'Registro para la app Leads Global: crea la cuenta con rol "leads" ' +
+      '(o lo agrega si el email ya existía, validando la contraseña) y ' +
+      'hace login automático.',
+  })
+  @ApiResponse({ status: 201, description: 'Usuario creado/actualizado, retorna user + token' })
+  @ApiResponse({ status: 401, description: 'El email ya existe y la contraseña no coincide' })
+  registerLeadsUser(@Body() dto: RegisterWithRoleDto) {
+    return this.authService.registerWithRole(dto, ValidRoles.leads);
   }
 
   @Post('login')

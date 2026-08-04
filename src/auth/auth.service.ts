@@ -6,7 +6,7 @@ import { ILike, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 
 import { User } from './entities/user.entity';
-import { LoginUserDto, CreateUserDto } from './dto';
+import { LoginUserDto, CreateUserDto, RegisterWithRoleDto } from './dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -44,6 +44,73 @@ export class AuthService {
     } catch (error) {
       this.handleDBErrors(error);
     }
+  }
+
+  /**
+   * Registro "de aplicación": usado por apps satélite (ej. Leads Global)
+   * que necesitan que cualquiera pueda crear cuenta y quedar habilitado
+   * de una, sin pasar por la aprobación manual del flujo de `create()`.
+   *
+   * - Si el email no existe: crea el usuario con el rol indicado y hace
+   *   login automático (retorna user + token).
+   * - Si el email ya existe: valida la contraseña (no se puede "tomar"
+   *   una cuenta ajena solo por conocer el email) y, si es correcta,
+   *   le agrega el rol indicado si no lo tenía, reactiva la cuenta si
+   *   estaba inactiva, y hace login automático.
+   */
+  async registerWithRole( dto: RegisterWithRoleDto, role: string ) {
+    const { password, fullName, email } = dto;
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+      select: { id: true, email: true, password: true, fullName: true, isActive: true, roles: true, phone: true, address: true, createdAt: true }
+    });
+
+    if ( !existing ) {
+      try {
+        const user = this.userRepository.create({
+          email: normalizedEmail,
+          fullName,
+          password: bcrypt.hashSync( password, 10 ),
+          roles: [ role ],
+        });
+
+        await this.userRepository.save( user );
+        delete user.password;
+
+        return {
+          user,
+          token: this.getJwtToken({ id: user.id }),
+        };
+      } catch (error) {
+        this.handleDBErrors(error);
+      }
+    }
+
+    // El email ya existe: hay que probar que quien está pidiendo esto
+    // realmente conoce la contraseña de esa cuenta antes de tocarla.
+    if ( !bcrypt.compareSync( password, existing.password ) )
+      throw new UnauthorizedException('Credentials are not valid (password)');
+
+    const updates: Partial<User> = {};
+    if ( !existing.roles.includes( role ) ) {
+      updates.roles = [ ...existing.roles, role ];
+    }
+    if ( !existing.isActive ) {
+      updates.isActive = true;
+    }
+    if ( Object.keys(updates).length > 0 ) {
+      await this.userRepository.update( existing.id, updates );
+      Object.assign( existing, updates );
+    }
+
+    delete existing.password;
+
+    return {
+      user: existing,
+      token: this.getJwtToken({ id: existing.id }),
+    };
   }
 
   async login( loginUserDto: LoginUserDto ) {
