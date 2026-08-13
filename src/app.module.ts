@@ -14,6 +14,7 @@ import { CampaignsModule }  from './campaigns/campaigns.module';
 import { DashboardModule }  from './dashboard/dashboard.module';
 import { WebhooksModule }  from './webhooks/webhooks.module';
 import { TrackingModule }  from './tracking/tracking.module';
+import { LandingAsesoresModule } from './landing-asesores/landing-asesores.module';
 
 
 @Module({
@@ -54,6 +55,7 @@ import { TrackingModule }  from './tracking/tracking.module';
     DashboardModule,
     WebhooksModule,
     TrackingModule,
+    LandingAsesoresModule,
   ],
 })
 export class AppModule {}

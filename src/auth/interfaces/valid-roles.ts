@@ -8,4 +8,5 @@ export enum ValidRoles {
     emailMasivo = 'emailMasivo',
     leads = 'leads',
     listaPrecios = 'listaPrecios',
+    landingAsesor = 'landing-asesor',
 }
