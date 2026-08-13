@@ -57,6 +57,14 @@ export class LandingAsesoresController {
     return this.landingAsesoresService.findByEmail(email);
   }
 
+  // ───────────────────────── Vincular Admins como Landing Asesores ─────────────────────────
+
+  @Post('admins/vincular-landing-asesor')
+  @Auth(ValidRoles.admin)
+  linkAdminsToLandingAsesor() {
+    return this.landingAsesoresService.linkAdminsToLandingAsesor();
+  }
+
   // ───────────────────────── Banner ─────────────────────────
 
   @Post('banner')
