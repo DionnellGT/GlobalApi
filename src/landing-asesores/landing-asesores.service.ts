@@ -153,6 +153,56 @@ export class LandingAsesoresService {
     return this.buildBundle(asesor);
   }
 
+  // ───────────────────────── Vincular Admins como Landing Asesores ─────────────────────────
+
+  /**
+   * Le agrega el role "landing-asesor" a todos los usuarios Admin que
+   * todavía no lo tengan. Al tener ese role, el id del Admin queda
+   * habilitado para vincularse (vía FK userId) con las tablas del Landing:
+   * LandingBanner, LandingSobreMi, LandingProyectos, LandingTestimonios y
+   * LandingMisDatos.
+   *
+   * Es idempotente: si se corre de nuevo y todos los Admin ya tienen el
+   * role, no modifica nada y devuelve el mensaje informativo.
+   */
+  async linkAdminsToLandingAsesor() {
+    const admins = await this.userRepository
+      .createQueryBuilder('user')
+      .where(':role = ANY(user.roles)', { role: ValidRoles.admin })
+      .getMany();
+
+    const yaVinculados: string[] = [];
+    const vinculadosAhora: string[] = [];
+
+    for (const admin of admins) {
+      if (admin.roles?.includes(ValidRoles.landingAsesor)) {
+        yaVinculados.push(admin.email);
+        continue;
+      }
+
+      admin.roles = [...(admin.roles ?? []), ValidRoles.landingAsesor];
+      await this.userRepository.save(admin);
+      vinculadosAhora.push(admin.email);
+    }
+
+    if (vinculadosAhora.length === 0) {
+      return {
+        message:
+          'Todos los usuarios Admin tienen el role de landing-asesor y su id ya esta enlazado a las tablas de los Landing',
+        totalAdmins: admins.length,
+        vinculadosAhora,
+        yaVinculados,
+      };
+    }
+
+    return {
+      message: `Se vinculó el role "landing-asesor" a ${vinculadosAhora.length} usuario(s) Admin`,
+      totalAdmins: admins.length,
+      vinculadosAhora,
+      yaVinculados,
+    };
+  }
+
   private async buildBundle(user: User) {
     const [banner, sobreMi, misDatos, proyectos, testimonios] = await Promise.all([
       this.bannerRepository.findOne({ where: { user: { id: user.id } } }),
