@@ -25,7 +25,7 @@ import { LandingAsesoresService } from './landing-asesores.service';
 import {
   CreateBannerDto, UpdateBannerDto,
   CreateSobreMiDto, UpdateSobreMiDto,
-  CreateProyectoDto, UpdateProyectoDto,
+  CreateProyectoDto,
   CreateTestimonioDto, UpdateTestimonioDto,
   CreateMisDatosDto, UpdateMisDatosDto,
 } from './dto';
