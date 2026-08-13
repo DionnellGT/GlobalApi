@@ -1,5 +1,12 @@
-import { BeforeInsert, BeforeUpdate, Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn } from 'typeorm';
+import { BeforeInsert, BeforeUpdate, Column, CreateDateColumn, Entity, OneToMany, OneToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { Project } from '../../projects/entities';
+import {
+    LandingBanner,
+    LandingSobreMi,
+    LandingProyecto,
+    LandingTestimonio,
+    LandingMisDatos,
+} from '../../landing-asesores/entities';
 
 
 @Entity('users')
@@ -46,6 +53,37 @@ export class User {
         ( project ) => project.user
     )
     project: Project[];
+
+    // Relaciones del landing del asesor (role: 'landing-asesor')
+    @OneToOne(
+        () => LandingBanner,
+        ( banner ) => banner.user
+    )
+    landingBanner: LandingBanner;
+
+    @OneToOne(
+        () => LandingSobreMi,
+        ( sobreMi ) => sobreMi.user
+    )
+    landingSobreMi: LandingSobreMi;
+
+    @OneToOne(
+        () => LandingMisDatos,
+        ( misDatos ) => misDatos.user
+    )
+    landingMisDatos: LandingMisDatos;
+
+    @OneToMany(
+        () => LandingProyecto,
+        ( proyecto ) => proyecto.user
+    )
+    landingProyectos: LandingProyecto[];
+
+    @OneToMany(
+        () => LandingTestimonio,
+        ( testimonio ) => testimonio.user
+    )
+    landingTestimonios: LandingTestimonio[];
 
     @BeforeInsert()
     checkFieldsBeforeInsert() {
