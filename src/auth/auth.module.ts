@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { User } from './entities/user.entity';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { LandingAsesoresModule } from '../landing-asesores/landing-asesores.module';
 
 @Module({
   controllers: [AuthController],
@@ -18,6 +19,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     TypeOrmModule.forFeature([ User ]),
 
     PassportModule.register({ defaultStrategy: 'jwt' }),
+
+    // Para poder crear los registros placeholder del Landing cuando se
+    // registra un usuario con el role "landing-asesor".
+    LandingAsesoresModule,
 
     JwtModule.registerAsync({
       imports: [ ConfigModule ],

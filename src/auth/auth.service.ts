@@ -12,6 +12,8 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { AdminUpdateProfileDto } from './dto/admin-update-profile.dto';
 import { PaginationDto } from '../common/dtos/pagination.dto';
+import { ValidRoles } from './interfaces';
+import { LandingAsesoresService } from '../landing-asesores/landing-asesores.service';
 
 
 @Injectable()
@@ -22,6 +24,8 @@ export class AuthService {
     private readonly userRepository: Repository<User>,
 
     private readonly jwtService: JwtService,
+
+    private readonly landingAsesoresService: LandingAsesoresService,
   ) {}
 
 
@@ -77,6 +81,11 @@ export class AuthService {
         });
 
         await this.userRepository.save( user );
+
+        if ( role === ValidRoles.landingAsesor ) {
+          await this.landingAsesoresService.createPlaceholderLandingRecords( user );
+        }
+
         delete user.password;
 
         return {
@@ -94,6 +103,8 @@ export class AuthService {
       throw new UnauthorizedException('Credentials are not valid (password)');
 
     const updates: Partial<User> = {};
+    const isGainingLandingAsesorRole = role === ValidRoles.landingAsesor && !existing.roles.includes( role );
+
     if ( !existing.roles.includes( role ) ) {
       updates.roles = [ ...existing.roles, role ];
     }
@@ -103,6 +114,10 @@ export class AuthService {
     if ( Object.keys(updates).length > 0 ) {
       await this.userRepository.update( existing.id, updates );
       Object.assign( existing, updates );
+    }
+
+    if ( isGainingLandingAsesorRole ) {
+      await this.landingAsesoresService.createPlaceholderLandingRecords( existing );
     }
 
     delete existing.password;

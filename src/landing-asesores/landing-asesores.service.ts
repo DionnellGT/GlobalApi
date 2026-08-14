@@ -156,14 +156,67 @@ export class LandingAsesoresService {
   // ───────────────────────── Vincular Admins como Landing Asesores ─────────────────────────
 
   /**
+   * Crea, para el usuario dado, los registros "placeholder" que le faltan
+   * en las tablas singleton del Landing (Banner, Sobre Mí, Mis Datos) —
+   * con valores mínimos válidos, listos para completarse después vía
+   * PATCH. Es idempotente: si ya existe el registro, no lo toca.
+   *
+   * No aplica a Proyectos ni Testimonios: al ser listas, "vacío" ya es su
+   * estado por defecto y no tiene sentido un placeholder ahí.
+   *
+   * Devuelve `true` si creó al menos un registro nuevo.
+   */
+  async createPlaceholderLandingRecords(user: User): Promise<boolean> {
+    const [existingBanner, existingSobreMi, existingMisDatos] = await Promise.all([
+      this.bannerRepository.findOne({ where: { user: { id: user.id } } }),
+      this.sobreMiRepository.findOne({ where: { user: { id: user.id } } }),
+      this.misDatosRepository.findOne({ where: { user: { id: user.id } } }),
+    ]);
+
+    let createdSomething = false;
+
+    if (!existingBanner) {
+      await this.bannerRepository.save(
+        this.bannerRepository.create({
+          titulo: 'Banner sin título',
+          user,
+        }),
+      );
+      createdSomething = true;
+    }
+
+    if (!existingSobreMi) {
+      await this.sobreMiRepository.save(
+        this.sobreMiRepository.create({
+          titulo: 'Sobre Mí',
+          user,
+        }),
+      );
+      createdSomething = true;
+    }
+
+    if (!existingMisDatos) {
+      await this.misDatosRepository.save(
+        this.misDatosRepository.create({
+          nombre: user.fullName?.trim() || user.email,
+          correo: user.email,
+          user,
+        }),
+      );
+      createdSomething = true;
+    }
+
+    return createdSomething;
+  }
+
+  /**
    * Le agrega el role "landing-asesor" a todos los usuarios Admin que
-   * todavía no lo tengan. Al tener ese role, el id del Admin queda
-   * habilitado para vincularse (vía FK userId) con las tablas del Landing:
-   * LandingBanner, LandingSobreMi, LandingProyectos, LandingTestimonios y
-   * LandingMisDatos.
+   * todavía no lo tengan, y crea los registros placeholder que les falten
+   * en Banner / Sobre Mí / Mis Datos (ver `createPlaceholderLandingRecords`).
    *
    * Es idempotente: si se corre de nuevo y todos los Admin ya tienen el
-   * role, no modifica nada y devuelve el mensaje informativo.
+   * role y sus placeholders creados, no modifica nada y devuelve el
+   * mensaje informativo.
    */
   async linkAdminsToLandingAsesor() {
     const admins = await this.userRepository
@@ -175,14 +228,20 @@ export class LandingAsesoresService {
     const vinculadosAhora: string[] = [];
 
     for (const admin of admins) {
-      if (admin.roles?.includes(ValidRoles.landingAsesor)) {
-        yaVinculados.push(admin.email);
-        continue;
+      const alreadyHadRole = admin.roles?.includes(ValidRoles.landingAsesor);
+
+      if (!alreadyHadRole) {
+        admin.roles = [...(admin.roles ?? []), ValidRoles.landingAsesor];
+        await this.userRepository.save(admin);
       }
 
-      admin.roles = [...(admin.roles ?? []), ValidRoles.landingAsesor];
-      await this.userRepository.save(admin);
-      vinculadosAhora.push(admin.email);
+      const createdPlaceholders = await this.createPlaceholderLandingRecords(admin);
+
+      if (alreadyHadRole && !createdPlaceholders) {
+        yaVinculados.push(admin.email);
+      } else {
+        vinculadosAhora.push(admin.email);
+      }
     }
 
     if (vinculadosAhora.length === 0) {
@@ -196,7 +255,7 @@ export class LandingAsesoresService {
     }
 
     return {
-      message: `Se vinculó el role "landing-asesor" a ${vinculadosAhora.length} usuario(s) Admin`,
+      message: `Se vinculó el role "landing-asesor" y se crearon los registros placeholder para ${vinculadosAhora.length} usuario(s) Admin`,
       totalAdmins: admins.length,
       vinculadosAhora,
       yaVinculados,
