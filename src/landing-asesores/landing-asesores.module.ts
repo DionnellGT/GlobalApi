@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { PassportModule } from '@nestjs/passport';
 
 import { User } from '../auth/entities/user.entity';
 import {
@@ -11,6 +12,7 @@ import {
 } from './entities';
 import { LandingAsesoresController } from './landing-asesores.controller';
 import { LandingAsesoresService } from './landing-asesores.service';
+import { LandingCloudinaryService } from './files/cloudinary.service';
 
 @Module({
   imports: [
@@ -27,9 +29,16 @@ import { LandingAsesoresService } from './landing-asesores.service';
       LandingTestimonio,
       LandingMisDatos,
     ]),
+
+    // El decorador @Auth() de este controller usa AuthGuard(), que
+    // necesita PassportModule disponible en el propio módulo del
+    // controller (no alcanza con que lo tenga AuthModule). PassportModule
+    // no depende de nada nuestro, así que importarlo acá no reintroduce
+    // el ciclo que se evitó arriba con TypeOrmModule.
+    PassportModule.register({ defaultStrategy: 'jwt' }),
   ],
   controllers: [LandingAsesoresController],
-  providers: [LandingAsesoresService],
-  exports: [TypeOrmModule, LandingAsesoresService],
+  providers: [LandingAsesoresService, LandingCloudinaryService],
+  exports: [TypeOrmModule, LandingAsesoresService, LandingCloudinaryService],
 })
 export class LandingAsesoresModule {}
