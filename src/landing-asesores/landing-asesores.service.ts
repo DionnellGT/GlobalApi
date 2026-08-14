@@ -3,6 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -25,10 +27,12 @@ import {
   CreateTestimonioDto, UpdateTestimonioDto,
   CreateMisDatosDto, UpdateMisDatosDto,
 } from './dto';
-import { deleteFromCloudinaryByUrl } from './files/cloudinary.helper';
+import { LandingCloudinaryService } from './files/cloudinary.service';
 
 @Injectable()
 export class LandingAsesoresService {
+  private readonly logger = new Logger(LandingAsesoresService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -47,6 +51,8 @@ export class LandingAsesoresService {
 
     @InjectRepository(LandingMisDatos)
     private readonly misDatosRepository: Repository<LandingMisDatos>,
+
+    private readonly landingCloudinaryService: LandingCloudinaryService,
   ) {}
 
   // ───────────────────────── Helpers de acceso ─────────────────────────
@@ -219,28 +225,50 @@ export class LandingAsesoresService {
    * mensaje informativo.
    */
   async linkAdminsToLandingAsesor() {
-    const admins = await this.userRepository
-      .createQueryBuilder('user')
-      .where(':role = ANY(user.roles)', { role: ValidRoles.admin })
-      .getMany();
+    let admins: User[];
+
+    try {
+      admins = await this.userRepository
+        .createQueryBuilder('user')
+        .where(':role = ANY(user.roles)', { role: ValidRoles.admin })
+        .getMany();
+    } catch (error) {
+      this.logger.error('Error al buscar los usuarios Admin', error?.stack);
+      throw new InternalServerErrorException(
+        `Error al buscar los usuarios Admin: ${error?.message ?? error}`,
+      );
+    }
 
     const yaVinculados: string[] = [];
     const vinculadosAhora: string[] = [];
 
     for (const admin of admins) {
-      const alreadyHadRole = admin.roles?.includes(ValidRoles.landingAsesor);
+      try {
+        const alreadyHadRole = admin.roles?.includes(ValidRoles.landingAsesor);
 
-      if (!alreadyHadRole) {
-        admin.roles = [...(admin.roles ?? []), ValidRoles.landingAsesor];
-        await this.userRepository.save(admin);
-      }
+        if (!alreadyHadRole) {
+          // Se usa `update()` (no `save()`) a propósito: `admin` viene de un
+          // queryBuilder que NO trae la columna `password` (select: false).
+          // Si se usara `.save(admin)`, TypeORM intentaría escribir
+          // `password = NULL` y Postgres lo rechaza por la constraint
+          // NOT NULL, lo que termina en un 500 genérico.
+          const updatedRoles = [...(admin.roles ?? []), ValidRoles.landingAsesor];
+          await this.userRepository.update(admin.id, { roles: updatedRoles });
+          admin.roles = updatedRoles;
+        }
 
-      const createdPlaceholders = await this.createPlaceholderLandingRecords(admin);
+        const createdPlaceholders = await this.createPlaceholderLandingRecords(admin);
 
-      if (alreadyHadRole && !createdPlaceholders) {
-        yaVinculados.push(admin.email);
-      } else {
-        vinculadosAhora.push(admin.email);
+        if (alreadyHadRole && !createdPlaceholders) {
+          yaVinculados.push(admin.email);
+        } else {
+          vinculadosAhora.push(admin.email);
+        }
+      } catch (error) {
+        this.logger.error(`Error al vincular al admin "${admin.email}"`, error?.stack);
+        throw new InternalServerErrorException(
+          `Error al vincular al admin "${admin.email}": ${error?.message ?? error}`,
+        );
       }
     }
 
@@ -315,7 +343,7 @@ export class LandingAsesoresService {
     }
 
     if (imagenUrl) {
-      if (banner.imagen) await deleteFromCloudinaryByUrl(banner.imagen);
+      if (banner.imagen) await this.landingCloudinaryService.deleteFileByUrl(banner.imagen);
       banner.imagen = imagenUrl;
     }
 
@@ -360,7 +388,7 @@ export class LandingAsesoresService {
     }
 
     if (imagenUrl) {
-      if (sobreMi.imagen) await deleteFromCloudinaryByUrl(sobreMi.imagen);
+      if (sobreMi.imagen) await this.landingCloudinaryService.deleteFileByUrl(sobreMi.imagen);
       sobreMi.imagen = imagenUrl;
     }
 
@@ -401,7 +429,7 @@ export class LandingAsesoresService {
     }
 
     if (logoUrl) {
-      if (misDatos.logo) await deleteFromCloudinaryByUrl(misDatos.logo);
+      if (misDatos.logo) await this.landingCloudinaryService.deleteFileByUrl(misDatos.logo);
       misDatos.logo = logoUrl;
     }
 
@@ -443,13 +471,13 @@ export class LandingAsesoresService {
     this.assertOwnerOrAdmin(requester, proyecto.user.id);
 
     if (imagenCaratulaUrl) {
-      if (proyecto.imagenCaratula) await deleteFromCloudinaryByUrl(proyecto.imagenCaratula);
+      if (proyecto.imagenCaratula) await this.landingCloudinaryService.deleteFileByUrl(proyecto.imagenCaratula);
       proyecto.imagenCaratula = imagenCaratulaUrl;
     }
 
     if (imagenesPopupUrls && imagenesPopupUrls.length > 0) {
       if (proyecto.imagenesPopup?.length) {
-        await Promise.all(proyecto.imagenesPopup.map((url) => deleteFromCloudinaryByUrl(url)));
+        await Promise.all(proyecto.imagenesPopup.map((url) => this.landingCloudinaryService.deleteFileByUrl(url)));
       }
       proyecto.imagenesPopup = imagenesPopupUrls;
     }
@@ -492,7 +520,7 @@ export class LandingAsesoresService {
     this.assertOwnerOrAdmin(requester, testimonio.user.id);
 
     if (mediaUrl) {
-      if (testimonio.media) await deleteFromCloudinaryByUrl(testimonio.media);
+      if (testimonio.media) await this.landingCloudinaryService.deleteFileByUrl(testimonio.media);
       testimonio.media = mediaUrl;
       testimonio.tipoMedia = tipoMedia;
     }

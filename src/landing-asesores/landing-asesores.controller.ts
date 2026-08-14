@@ -14,12 +14,11 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import { ApiConsumes, ApiTags } from '@nestjs/swagger';
-import { v4 as uuid } from 'uuid';
 
 import { Auth, GetUser } from '../auth/decorators';
 import { User } from '../auth/entities/user.entity';
 import { ValidRoles } from '../auth/interfaces';
-import { uploadBufferToCloudinary } from './files/cloudinary.helper';
+import { LandingCloudinaryService } from './files/cloudinary.service';
 
 import { LandingAsesoresService } from './landing-asesores.service';
 import {
@@ -30,7 +29,6 @@ import {
   CreateMisDatosDto, UpdateMisDatosDto,
 } from './dto';
 import {
-  buildLandingFolder,
   imageMulterOptions,
   mediaMulterOptions,
   getTipoMediaFromMimetype,
@@ -42,7 +40,10 @@ import {
 @ApiTags('Landing Asesores')
 @Controller('landing-asesores')
 export class LandingAsesoresController {
-  constructor(private readonly landingAsesoresService: LandingAsesoresService) {}
+  constructor(
+    private readonly landingAsesoresService: LandingAsesoresService,
+    private readonly landingCloudinaryService: LandingCloudinaryService,
+  ) {}
 
   // ───────────────────────── Consultas ─────────────────────────
 
@@ -311,10 +312,8 @@ export class LandingAsesoresController {
   ): Promise<string | undefined> {
     if (!file || !file.buffer) return undefined;
 
-    const publicId = `${buildLandingFolder(email, subfolder)}/${uuid()}`;
-
     try {
-      const result = await uploadBufferToCloudinary(file.buffer, file.mimetype, publicId);
+      const result = await this.landingCloudinaryService.uploadFile(file, email, subfolder);
       return result.secure_url;
     } catch (error: any) {
       throw new BadRequestException(
