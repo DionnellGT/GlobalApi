@@ -233,9 +233,10 @@ export class LandingAsesoresService {
         .where(':role = ANY(user.roles)', { role: ValidRoles.admin })
         .getMany();
     } catch (error) {
-      this.logger.error('Error al buscar los usuarios Admin', error?.stack);
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error('Error al buscar los usuarios Admin', err.stack);
       throw new InternalServerErrorException(
-        `Error al buscar los usuarios Admin: ${error?.message ?? error}`,
+        `Error al buscar los usuarios Admin: ${err.message}`,
       );
     }
 
@@ -265,9 +266,12 @@ export class LandingAsesoresService {
           vinculadosAhora.push(admin.email);
         }
       } catch (error) {
-        this.logger.error(`Error al vincular al admin "${admin.email}"`, error?.stack);
+        this.logger.error(
+          `Error al vincular al admin "${admin.email}"`,
+          error instanceof Error ? error.stack : String(error),
+        );
         throw new InternalServerErrorException(
-          `Error al vincular al admin "${admin.email}": ${error?.message ?? error}`,
+          `Error al vincular al admin "${admin.email}": ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
