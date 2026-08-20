@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -262,6 +263,12 @@ export class LandingAsesoresController {
       linkGoogleMaps: body.linkGoogleMaps,
       link360Maps: body.link360Maps,
     };
+  }
+
+  @Delete('proyectos/:id')
+  @Auth(ValidRoles.admin, ValidRoles.landingAsesor)
+  deleteProyecto(@Param('id', ParseUUIDPipe) id: string, @GetUser() user: User) {
+    return this.landingAsesoresService.deleteProyecto(user, id);
   }
 
   // ───────────────────────── Testimonios ─────────────────────────

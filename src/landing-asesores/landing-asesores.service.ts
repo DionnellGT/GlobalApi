@@ -490,6 +490,26 @@ export class LandingAsesoresService {
     return this.proyectoRepository.save(proyecto);
   }
 
+  /**
+   * Elimina un proyecto y, antes de borrar la fila, elimina de Cloudinary
+   * la imagen de carátula y todas las imágenes de detalle.
+   */
+  async deleteProyecto(requester: User, id: string): Promise<{ message: string }> {
+    const proyecto = await this.proyectoRepository.findOne({ where: { id } });
+    if (!proyecto) throw new NotFoundException(`No existe un proyecto con el id "${id}"`);
+
+    this.assertOwnerOrAdmin(requester, proyecto.user.id);
+
+    await this.landingCloudinaryService.deleteFilesByUrls([
+      proyecto.imagenCaratula,
+      ...(proyecto.imagenesPopup ?? []),
+    ]);
+
+    await this.proyectoRepository.remove(proyecto);
+
+    return { message: `Se eliminó el proyecto "${proyecto.nombre}"` };
+  }
+
   // ───────────────────────── Testimonios ─────────────────────────
 
   async createTestimonio(
@@ -524,7 +544,13 @@ export class LandingAsesoresService {
     this.assertOwnerOrAdmin(requester, testimonio.user.id);
 
     if (mediaUrl) {
-      if (testimonio.media) await this.landingCloudinaryService.deleteFileByUrl(testimonio.media);
+      if (testimonio.media) {
+        // Se pasa el resourceType explícito (guardado en la DB) en vez de
+        // dejar que se infiera de la extensión de la URL: es la fuente de
+        // verdad más confiable para distinguir foto de video.
+        const previousResourceType = testimonio.tipoMedia === 'video' ? 'video' : 'image';
+        await this.landingCloudinaryService.deleteFileByUrl(testimonio.media, previousResourceType);
+      }
       testimonio.media = mediaUrl;
       testimonio.tipoMedia = tipoMedia;
     }
