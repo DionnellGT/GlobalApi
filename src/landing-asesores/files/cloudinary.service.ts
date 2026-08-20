@@ -58,30 +58,73 @@ export class LandingCloudinaryService {
   }
 
   /**
-   * Elimina un asset por su public_id de Cloudinary.
+   * Elimina un asset por su public_id de Cloudinary. Si Cloudinary
+   * responde "not found" con el resource_type dado, reintenta una vez con
+   * el otro tipo (imagen/video): un resource_type mal detectado hace que
+   * `destroy` "tenga éxito" sin borrar nada, porque busca en el bucket
+   * equivocado.
    */
   async deleteFile(publicId: string, resourceType: 'image' | 'video' = 'image'): Promise<void> {
     const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
-    if (result.result !== 'ok' && result.result !== 'not found') {
-      throw new BadRequestException(`No se pudo eliminar el archivo: ${publicId}`);
+
+    if (result.result === 'ok') {
+      this.logger.log(`Asset de Cloudinary eliminado: ${publicId} (${resourceType})`);
+      return;
     }
+
+    if (result.result === 'not found') {
+      const alternateType = resourceType === 'image' ? 'video' : 'image';
+      const retryResult = await cloudinary.uploader.destroy(publicId, {
+        resource_type: alternateType,
+      });
+
+      if (retryResult.result === 'ok') {
+        this.logger.log(
+          `Asset de Cloudinary eliminado: ${publicId} (era "${alternateType}", no "${resourceType}")`,
+        );
+        return;
+      }
+
+      if (retryResult.result === 'not found') {
+        // Ya no existe en Cloudinary con ninguno de los dos tipos: no es
+        // un error real (ej: ya se había borrado antes).
+        this.logger.warn(`Asset de Cloudinary no encontrado (ya no existía): ${publicId}`);
+        return;
+      }
+    }
+
+    throw new BadRequestException(`No se pudo eliminar el archivo: ${publicId}`);
   }
 
   /**
    * Elimina un asset a partir de su URL segura de Cloudinary (extrae el
-   * public_id y el resource_type de la propia URL). No lanza error si la
-   * URL es inválida o el borrado falla: el borrado del asset anterior
-   * nunca debe bloquear la actualización del nuevo.
+   * public_id y, si no se indica `resourceType`, lo infiere de la
+   * extensión de la URL). No lanza error si la URL es inválida o el
+   * borrado falla: el borrado del asset anterior nunca debe bloquear la
+   * actualización del nuevo.
    */
-  async deleteFileByUrl(url: string): Promise<void> {
+  async deleteFileByUrl(url: string, resourceType?: 'image' | 'video'): Promise<void> {
     const publicId = this.extractPublicIdFromUrl(url);
-    if (!publicId) return;
+    if (!publicId) {
+      this.logger.warn(`No se pudo extraer el public_id de la URL, se omite el borrado: ${url}`);
+      return;
+    }
 
     try {
-      await this.deleteFile(publicId, this.getResourceTypeFromUrl(url));
+      await this.deleteFile(publicId, resourceType ?? this.getResourceTypeFromUrl(url));
     } catch (error) {
       this.logger.error(`No se pudo eliminar el asset de Cloudinary "${publicId}":`, error);
     }
+  }
+
+  /**
+   * Elimina varios assets de Cloudinary a partir de sus URLs. Ignora
+   * valores vacíos/nulos. Se usa por ejemplo al borrar un proyecto
+   * completo (carátula + imágenes de detalle).
+   */
+  async deleteFilesByUrls(urls: (string | null | undefined)[]): Promise<void> {
+    const validUrls = urls.filter((url): url is string => !!url);
+    await Promise.all(validUrls.map((url) => this.deleteFileByUrl(url)));
   }
 
   /**
