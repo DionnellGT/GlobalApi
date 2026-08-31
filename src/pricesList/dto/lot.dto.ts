@@ -23,11 +23,17 @@ export class LotDto {
   @IsOptional()
   priceList?: number;
 
-  @ApiProperty({ required: false, description: 'Precio con pie + cuotas (opcional)' })
+  @ApiProperty({ required: false, description: 'Precio con pie + 11 cuotas (opcional)' })
   @IsInt()
   @Min(0)
   @IsOptional()
   installmentPrice?: number;
+
+  @ApiProperty({ required: false, description: 'Precio con pie + 24 cuotas (opcional)' })
+  @IsInt()
+  @Min(0)
+  @IsOptional()
+  installmentPrice2?: number;
 
   @ApiProperty({ description: 'Precio al contado' })
   @IsInt()
