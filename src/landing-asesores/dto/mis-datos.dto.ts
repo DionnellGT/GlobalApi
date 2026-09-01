@@ -31,6 +31,11 @@ export class CreateMisDatosDto {
   @IsString()
   @IsOptional()
   instagram?: string;
+
+  @ApiProperty({ description: 'Link de TikTok', required: false })
+  @IsString()
+  @IsOptional()
+  tiktok?: string;
 }
 
 export class UpdateMisDatosDto extends PartialType(CreateMisDatosDto) {}
