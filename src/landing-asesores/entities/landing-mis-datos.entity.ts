@@ -35,6 +35,9 @@ export class LandingMisDatos {
   @Column('text', { nullable: true })
   instagram: string;
 
+  @Column('text', { nullable: true })
+  tiktok: string;
+
   @OneToOne(() => User, { eager: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
