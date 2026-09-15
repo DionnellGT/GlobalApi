@@ -36,7 +36,8 @@ export class PricesListService {
         lots: lots.map((lot) => this.lotRepository.create({ ...lot })),
       });
 
-      return await this.priceListRepository.save(priceList);
+      const saved = await this.priceListRepository.save(priceList);
+      return this.sortLots(saved);
     } catch (error) {
       this.handleDBExceptions(error);
     }
@@ -44,12 +45,15 @@ export class PricesListService {
 
   async findAll() {
     return this.priceListRepository.find({
-      order: { marca: 'ASC', tipo: 'ASC', name: 'ASC' },
+      order: { marca: 'ASC', tipo: 'ASC', name: 'ASC', lots: { lot: 'ASC' } },
     });
   }
 
   async findOne(id: string) {
-    const priceList = await this.priceListRepository.findOne({ where: { id } });
+    const priceList = await this.priceListRepository.findOne({ 
+      where: { id },
+      order: { lots: { lot: 'ASC' } },
+    });
 
     if (!priceList)
       throw new NotFoundException(`Lista de precios con id "${id}" no encontrada`);
@@ -61,7 +65,7 @@ export class PricesListService {
   async findByMarca(marca: Marca) {
     const priceLists = await this.priceListRepository.find({
       where: { marca },
-      order: { tipo: 'ASC', name: 'ASC' },
+      order: { tipo: 'ASC', name: 'ASC', lots: { lot: 'ASC' }  },
     });
 
     if (!priceLists.length)
@@ -74,7 +78,7 @@ export class PricesListService {
   async findByMarcaAndTipo(marca: Marca, tipo: TipoLista) {
     const priceLists = await this.priceListRepository.find({
       where: { marca, tipo },
-      order: { name: 'ASC' },
+      order: { name: 'ASC', lots: { lot: 'ASC' } },
     });
 
     if (!priceLists.length)
@@ -222,6 +226,12 @@ export class PricesListService {
       updatedAt: null,
       message: 'PDF de brochure eliminado correctamente',
     };
+  }
+
+  // Ordena los lotes de una lista de precios por número de lote (ascendente)
+  private sortLots(priceList: PriceList) {
+    priceList.lots?.sort((a, b) => a.lot - b.lot);
+    return priceList;
   }
 
   private handleDBExceptions(error: any) {
